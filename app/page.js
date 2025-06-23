@@ -1,103 +1,239 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import Chart from '../components/Chart';
+import { getDashboardData } from '../lib/api';
+import TransactionTable from '@/components/TransactionTable'
+
+export default function Dashboard() {
+  const [data, setData] = useState({});
+  const [filters, setFilters] = useState({ startDate: '', endDate: '' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError('');
+      try {
+        const res = await getDashboardData(filters);
+        setData(res.data);
+      } catch (error) {
+        setError('Failed to fetch dashboard data. Please try again.');
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [filters]);
+
+  const handleFilterChange = (e) => {
+    setFilters({ ...filters, [e.target.name]: e.target.value });
+  };
+
+  const barChartData = {
+    labels: ['Receipts', 'Payments', 'Balance'],
+    datasets: [
+      {
+        label: 'Financial Overview',
+        data: [data.totalReceipts || 0, data.totalPayments || 0, data.balance || 0],
+        backgroundColor: ['#4f46e5', '#ef4444', '#10b981'],
+        borderRadius: 8,
+        hoverBackgroundColor: ['#4338ca', '#dc2626', '#059669'],
+      },
+    ],
+  };
+
+  const pieChartData = {
+    labels: ['Receipts', 'Payments'],
+    datasets: [
+      {
+        data: [data.totalReceipts || 0, data.totalPayments || 0],
+        backgroundColor: ['#4f46e5', '#ef4444'],
+        hoverBackgroundColor: ['#4338ca', '#dc2626'],
+        borderWidth: 2,
+        borderColor: '#ffffff',
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top', labels: { color: '#e5e7eb' } },
+      tooltip: { backgroundColor: '#1f2937', titleColor: '#ffffff', bodyColor: '#ffffff' },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: { color: '#e5e7eb' },
+        grid: { color: '#374151' },
+      },
+      x: {
+        ticks: { color: '#e5e7eb' },
+        grid: { display: false },
+      },
+    },
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-7xl mx-auto"
+      >
+        <h1 className="text-4xl font-extrabold text-white text-center mb-8">
+          Financial Dashboard
+        </h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+        {/* Filters */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="mb-8 bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
+        >
+          <h3 className="text-lg font-semibold text-white mb-4">Filter Transactions</h3>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <input
+              type="date"
+              name="startDate"
+              value={filters.startDate}
+              onChange={handleFilterChange}
+              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <input
+              type="date"
+              name="endDate"
+              value={filters.endDate}
+              onChange={handleFilterChange}
+              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        </motion.div>
+
+        {/* Error Message */}
+        {error && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-red-900 bg-opacity-50 text-red-200 p-4 rounded-lg mb-6 text-center"
           >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            {error}
+          </motion.div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-10">
+            <svg
+              className="animate-spin h-8 w-8 text-indigo-400 mx-auto"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+              ></path>
+            </svg>
+            <p className="text-white mt-2">Loading...</p>
+          </div>
+        )}
+
+        {/* Alerts */}
+        {!loading && data.alerts?.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="bg-red-900 bg-opacity-50 text-red-200 p-4 rounded-lg mb-6"
+          >
+            {data.alerts.map((alert, index) => (
+              <p key={index} className="text-sm">{alert}</p>
+            ))}
+          </motion.div>
+        )}
+
+        {/* Financial Metrics */}
+        {!loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+          >
+            {[
+              { title: 'Opening Balance', value: data.openingBalance || 0 },
+              { title: 'Total Receipts', value: data.totalReceipts || 0 },
+              { title: 'Total Payments', value: data.totalPayments || 0 },
+              { title: 'Closing Balance', value: data.balance || 0 },
+            ].map((metric, index) => (
+              <motion.div
+                key={index}
+                whileHover={{ scale: 1.05 }}
+                className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg text-center"
+              >
+                <h3 className="text-lg font-semibold text-gray-300">{metric.title}</h3>
+                <p className="text-3xl font-bold text-indigo-400">${metric.value}</p>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+
+        {/* Charts */}
+        {!loading && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
+            >
+              <h3 className="text-lg font-semibold text-white mb-4">Financial Overview</h3>
+              <Chart type="bar" data={barChartData} options={chartOptions} />
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.5 }}
+              className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
+            >
+              <h3 className="text-lg font-semibold text-white mb-4">Receipts vs Payments</h3>
+              <Chart type="pie" data={pieChartData} options={chartOptions} />
+            </motion.div>
+          </div>
+        )}
+
+        {/* Transaction Table */}
+        {!loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
+          >
+            <h3 className="text-lg font-semibold text-white mb-4">Recent Transactions</h3>
+            <TransactionTable
+              transactions={data.recentTransactions || []}
+              onEdit={(tx) => console.log('Edit:', tx)}
+              onDelete={(id, type) => console.log('Delete:', id, type)}
+            />
+          </motion.div>
+        )}
+      </motion.div>
     </div>
   );
 }

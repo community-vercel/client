@@ -42,7 +42,6 @@ export default function Register() {
             className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             required
           />
-          
 
           <select
             value={formData.role}

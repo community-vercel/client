@@ -43,6 +43,7 @@ export default function Register() {
             required
           />
 
+
           <select
             value={formData.role}
             onChange={(e) => setFormData({ ...formData, role: e.target.value })}

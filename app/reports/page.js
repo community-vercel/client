@@ -1,4 +1,3 @@
-// app/reports/page.js
 'use client';
 
 import { useState } from 'react';
@@ -12,15 +11,15 @@ export default function Reports() {
   const [filters, setFilters] = useState({ startDate: '', endDate: '', format: 'json' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
   const fetchReport = async () => {
     setLoading(true);
     setError('');
     try {
       const res = await getSummaryReport(filters);
       if (filters.format === 'pdf' || filters.format === 'excel') {
-        // Ensure the base URL does not include /api
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || 'http://localhost:3000';
-        const url = `${baseUrl}${res.data.url}`; // e.g., http://localhost:3000/Uploads/report-xxx.pdf
+        // Use the direct Blob URL returned by the API
+        const url = res.data.url; // e.g., https://...public.blob.vercel-storage.com/...
         const link = document.createElement('a');
         link.href = url;
         link.download = url.split('/').pop();

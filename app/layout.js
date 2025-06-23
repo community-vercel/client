@@ -6,6 +6,7 @@ export const metadata = {
   description: 'A modern cashbook and expense management system',
 };
 
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">

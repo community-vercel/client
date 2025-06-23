@@ -49,6 +49,7 @@ export default function Register() {
             onChange={(e) => setFormData({ ...formData, role: e.target.value })}
             className="w-full p-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
           >
+            
 
             <option value="user">User</option>
             <option value="admin">Admin</option>

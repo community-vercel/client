@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Home, Download, Upload, BarChart } from 'lucide-react';
+import { Menu, X, Home, Download, Upload, BarChart, UserCheck2, ReceiptPoundSterlingIcon, File } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -20,8 +20,8 @@ export default function Sidebar() {
 
   const links = [
     { href: '/dashboard', label: 'Dashboard', icon: <Home size={24} /> },
-    { href: '/receipts', label: 'Receipts', icon: <Download size={24} /> },
-    { href: '/payments', label: 'Payments', icon: <Upload size={24} /> },
+    { href: '/payments', label: 'Record Management', icon: <File size={24} /> },
+    { href: '/customers', label: 'Customer Management', icon: <UserCheck2 size={24} /> },
     { href: '/reports', label: 'Reports', icon: <BarChart size={24} /> },
   ];
 

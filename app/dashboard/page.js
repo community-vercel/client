@@ -34,7 +34,7 @@ export default function Dashboard() {
   };
 
   const barChartData = {
-    labels: ['Receipts', 'Payments', 'Balance'],
+    labels: ['Credit', 'Debit', 'Balance'],
     datasets: [
       {
         label: 'Financial Overview',
@@ -47,7 +47,7 @@ export default function Dashboard() {
   };
 
   const pieChartData = {
-    labels: ['Receipts', 'Payments'],
+    labels: ['Credit', 'Debit'],
     datasets: [
       {
         data: [data.totalReceipts || 0, data.totalPayments || 0],
@@ -177,8 +177,8 @@ export default function Dashboard() {
           >
             {[
               { title: 'Opening Balance', value: data.openingBalance || 0 },
-              { title: 'Total Receipts', value: data.totalReceipts || 0 },
-              { title: 'Total Payments', value: data.totalPayments || 0 },
+              { title: 'Total Credits', value: data.totalReceipts || 0 },
+              { title: 'Total Debits', value: data.totalPayments || 0 },
               { title: 'Closing Balance', value: data.balance || 0 },
             ].map((metric, index) => (
               <motion.div
@@ -211,7 +211,7 @@ export default function Dashboard() {
               transition={{ delay: 0.5 }}
               className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
             >
-              <h3 className="text-lg font-semibold text-white mb-4">Receipts vs Payments</h3>
+              <h3 className="text-lg font-semibold text-white mb-4">Credit vs Receipt</h3>
               <Chart type="pie" data={pieChartData} options={chartOptions} />
             </motion.div>
           </div>

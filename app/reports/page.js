@@ -8,7 +8,7 @@ import { getSummaryReport } from '../../lib/api';
 
 export default function Reports() {
   const [report, setReport] = useState(null);
-  const [filters, setFilters] = useState({ startDate: '', endDate: '', format: 'json' });
+  const [filters, setFilters] = useState({ startDate: '', endDate: '', format: 'json',role:'admin' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,15 +18,14 @@ export default function Reports() {
     try {
       const res = await getSummaryReport(filters);
       if (filters.format === 'pdf' || filters.format === 'excel') {
-        // Use the direct Blob URL returned by the API
-        const url = res.data.url; // e.g., https://...public.blob.vercel-storage.com/...
+        const url = res.data.url;
         const link = document.createElement('a');
         link.href = url;
         link.download = url.split('/').pop();
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        setReport(null);
+ 
       } else {
         setReport(res.data);
       }
@@ -36,6 +35,14 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+    }).format(value || 0);
   };
 
   const chartData = report && {
@@ -68,7 +75,7 @@ export default function Reports() {
         transition={{ duration: 0.5 }}
         className="max-w-7xl mx-auto"
       >
-        <h1 className="text-4xl font-extrabold text-white text-center mb-8">Financial Reports</h1>
+        <h1 className="text-4xl font-extrabold text-white text-center mb-8">Financial Reports (All Users)</h1>
 
         {error && (
           <motion.div
@@ -92,17 +99,20 @@ export default function Reports() {
               value={filters.startDate}
               onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-label="Start Date"
             />
             <input
               type="date"
               value={filters.endDate}
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-label="End Date"
             />
             <select
               value={filters.format}
               onChange={(e) => setFilters({ ...filters, format: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-label="Report Format"
             >
               <option value="json">JSON</option>
               <option value="pdf">PDF</option>
@@ -115,6 +125,7 @@ export default function Reports() {
             className={`mt-4 sm:mt-0 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition flex items-center justify-center ${
               loading ? 'opacity-75 cursor-not-allowed' : ''
             }`}
+            aria-label="Generate Report"
           >
             {loading && (
               <svg
@@ -191,7 +202,7 @@ export default function Reports() {
                     className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg text-center"
                   >
                     <h3 className="text-lg font-semibold text-gray-300">{metric.title}</h3>
-                    <p className="text-3xl font-bold text-indigo-400">${metric.value.toFixed(2)}</p>
+                    <p className="text-3xl font-bold text-indigo-400">{formatCurrency(metric.value)}</p>
                   </motion.div>
                 ))}
               </div>

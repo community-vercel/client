@@ -188,7 +188,7 @@ export default function Customers() {
                   <p className="text-gray-300">Balance: {formatCurrency(customer.balance)}</p>
                 </div>
                 <div className="flex space-x-2">
-                  <Link href={`/transactions?customerId=${customer._id}`}>
+                  <Link href={`/payments?customerId=${customer._id}`}>
                     <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
                       Add Transaction
                     </button>

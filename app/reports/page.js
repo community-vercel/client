@@ -12,7 +12,7 @@ export default function Reports() {
   const [filters, setFilters] = useState({ startDate: '', endDate: '', format: 'json',role:'admin' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
+const today = new Date().toISOString().split('T')[0]; 
   const fetchReport = async () => {
     setLoading(true);
     setError('');
@@ -95,6 +95,8 @@ export default function Reports() {
               onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               aria-label="Start Date"
+                max={today}
+
             />
             <input
               type="date"
@@ -102,6 +104,8 @@ export default function Reports() {
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               aria-label="End Date"
+                max={today}
+
             />
             <select
               value={filters.format}

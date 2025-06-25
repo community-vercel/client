@@ -46,6 +46,7 @@ export default function Dashboard() {
       },
     ],
   };
+const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
 
   const pieChartData = {
     labels: ['Credit', 'Debit'],
@@ -105,6 +106,8 @@ export default function Dashboard() {
               name="startDate"
               value={filters.startDate}
               onChange={handleFilterChange}
+                max={today}
+
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
             <input
@@ -112,6 +115,8 @@ export default function Dashboard() {
               name="endDate"
               value={filters.endDate}
               onChange={handleFilterChange}
+                max={today}
+
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>

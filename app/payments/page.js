@@ -58,7 +58,7 @@ console.log('CATEGORIES', CATEGORIES);
     if (userRole) setRole(userRole);
     if (id) setUserid(id);
   }, []);
-
+const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
   // Update formData with user ID
   useEffect(() => {
     if (userid) setFormData((prev) => ({ ...prev, user: userid }));
@@ -296,6 +296,8 @@ console.log('CATEGORIES', CATEGORIES);
               onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
               aria-label="Start Date"
+                max={today}
+
             />
             <input
               type="date"
@@ -303,6 +305,8 @@ console.log('CATEGORIES', CATEGORIES);
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
               aria-label="End Date"
+                max={today}
+
             />
             <select
               value={filters.category}
@@ -582,6 +586,8 @@ console.log('CATEGORIES', CATEGORIES);
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 aria-label="Transaction Date"
+                  max={today}
+
               />
               <label className="flex items-center text-gray-200">
                 <input

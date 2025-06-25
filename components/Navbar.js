@@ -13,6 +13,10 @@ export default function Navbar() {
   // Handle logout
   const handleLogout = () => {
     localStorage.removeItem('token');
+      
+    localStorage.removeItem('userid');
+        localStorage.removeItem('role');
+
     setIsOpen(false);
     router.push('/login');
   };

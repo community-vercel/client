@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Home, Download, Upload, BarChart, UserCheck2, ReceiptPoundSterlingIcon, File } from 'lucide-react';
+import { Menu, X, Home, Download, Upload, BarChart, UserCheck2, ReceiptPoundSterlingIcon, File, Section, Settings, TypeOutline, ChartNoAxesGanttIcon, ChartNoAxesColumn, ChartNoAxesColumnIncreasingIcon, LucideMenuSquare } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -23,6 +23,9 @@ export default function Sidebar() {
     { href: '/payments', label: 'Record Management', icon: <File size={24} /> },
     { href: '/customers', label: 'Customer Management', icon: <UserCheck2 size={24} /> },
     { href: '/reports', label: 'Reports', icon: <BarChart size={24} /> },
+    { href: '/categories', label: 'Category Management', icon: <LucideMenuSquare size={24} /> },
+    { href: '/settings', label: 'Settings', icon: <Settings size={24} /> },
+
   ];
 
   // Animation variants for sidebar

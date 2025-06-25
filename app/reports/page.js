@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Chart from '../../components/Chart';
 import TransactionTable from '../../components/TransactionTable';
 import { getSummaryReport } from '../../lib/api';
+import { formatCurrency } from '../utils/helpers';
 
 export default function Reports() {
   const [report, setReport] = useState(null);
@@ -37,13 +38,7 @@ export default function Reports() {
     }
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(value || 0);
-  };
+
 
   const chartData = report && {
     labels: Object.keys(report.categorySummary || {}),
@@ -68,7 +63,7 @@ export default function Reports() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-28 px-4 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -114,7 +109,7 @@ export default function Reports() {
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               aria-label="Report Format"
             >
-              <option value="json">JSON</option>
+              <option value="json">Summary</option>
               <option value="pdf">PDF</option>
               <option value="excel">Excel</option>
             </select>
@@ -189,8 +184,8 @@ export default function Reports() {
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 {[
-                  { title: 'Total Receipts', value: report.totalReceipts || 0 },
-                  { title: 'Total Payments', value: report.totalPayments || 0 },
+                  { title: 'Total Credits', value: report.totalReceipts || 0 },
+                  { title: 'Total Debits', value: report.totalPayments || 0 },
                   { title: 'Balance', value: report.balance || 0 },
                 ].map((metric, index) => (
                   <motion.div

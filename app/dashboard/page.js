@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import Chart from '../../components/Chart';
 import { getDashboardData } from '../../lib/api';
 import TransactionTable from '@/components/TransactionTable';
+import { formatCurrency } from '../utils/helpers';
 
 export default function Dashboard() {
   const [data, setData] = useState({});
@@ -79,7 +80,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -187,7 +188,7 @@ export default function Dashboard() {
                 className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg text-center"
               >
                 <h3 className="text-lg font-semibold text-gray-300">{metric.title}</h3>
-                <p className="text-3xl font-bold text-indigo-400">${metric.value}</p>
+                <p className="text-2xl font-bold text-indigo-400">{formatCurrency(metric.value)}</p>
               </motion.div>
             ))}
           </motion.div>

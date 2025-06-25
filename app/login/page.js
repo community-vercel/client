@@ -22,8 +22,9 @@ export default function AuthPage() {
         // Login
         const res = await login({ username: formData.username, password: formData.password });
         localStorage.setItem('token', res.data.token);
-                localStorage.setItem('userid', res.data.user.id);
-
+                  localStorage.setItem('userid', res.data.user.id);
+        // Optionally, you can store user role if needed
+        localStorage.setItem('role', res.data.user.role ); 
         router.push('/dashboard');
       } else {
         // Register

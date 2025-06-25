@@ -1,10 +1,16 @@
 'use client';
-
+import { useState, useEffect } from 'react';
+import { formatCurrency } from '@/app/utils/helpers';
 import { motion } from 'framer-motion';
 
 export default function TransactionTable({ transactions, onEdit, onDelete }) {
-  console.log('Rendering TransactionTable with transactions:', transactions);
-  return (
+  const [role, setRole] = useState(null);
+
+  // Initialize user ID from localStorage
+  useEffect(() => {
+    const userRole = localStorage.getItem('role');
+    if (userRole) setRole(userRole);
+  }, []);  return (
     <div className="overflow-x-auto">
       <table className="min-w-full bg-green bg-opacity-50 rounded-lg">
         <thead>
@@ -31,25 +37,29 @@ export default function TransactionTable({ transactions, onEdit, onDelete }) {
               <td className="p-3">{transaction.type === 'payment' ? 'Debit' : 'Credit'}</td>
               <td className="p-3">{transaction.customerId?.name || 'N/A'}</td>
               <td className={`p-3 ${transaction.type === 'payment' ? 'text-red-400' : 'text-green-400'}`}>
-                ${transaction.amount.toFixed(2)}
+                {formatCurrency(transaction.amount.toFixed(2))}
               </td>
               <td className="p-3">{transaction.description}</td>
               <td className="p-3">{transaction.category}</td>
               {/* <td className="p-3">{transaction.type}</td> */}
               <td className="p-3">{new Date(transaction.date).toLocaleDateString()}</td>
               <td className="p-3">
-                <button
-                  onClick={() => onEdit(transaction)}
-                  className="text-blue-400 hover:underline mr-2"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => onDelete(transaction._id, transaction.type)}
-                  className="text-red-400 hover:underline"
-                >
-                  Delete
-                </button>
+                {role === 'admin' && (
+                  <button
+                    onClick={() => onEdit(transaction)}
+                    className="text-blue-400 hover:underline mr-2"
+                  >
+                    Edit
+                  </button>
+                )}
+                {role === 'admin' && (
+                  <button
+                    onClick={() => onDelete(transaction._id, transaction.type)}
+                    className="text-red-400 hover:underline"
+                  >
+                    Delete
+                  </button>
+                )}
               </td>
             </motion.tr>
           ))}

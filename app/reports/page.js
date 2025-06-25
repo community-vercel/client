@@ -40,8 +40,10 @@ const today = new Date().toISOString().split('T')[0];
 
 
 
-
   
+
+
+
   const chartData = report && {
     labels: Object.keys(report.categorySummary || {}),
     datasets: [

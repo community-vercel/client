@@ -499,7 +499,6 @@ export default function Transactions() {
                     )
                   );
                 }}
-                
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 list="customers"
                 required

@@ -27,7 +27,7 @@ export default function Transactions() {
   const [suggestions, setSuggestions] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [CATEGORIES, setCategories] = useState([]);
-console.log('CATEGORIES', CATEGORIES);
+  console.log('CATEGORIES', CATEGORIES);
   const [formData, setFormData] = useState({
     transactionType: '',
     customerId: '',
@@ -59,7 +59,7 @@ console.log('CATEGORIES', CATEGORIES);
     if (userRole) setRole(userRole);
     if (id) setUserid(id);
   }, []);
-const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
+  const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
   // Update formData with user ID
   useEffect(() => {
     if (userid) setFormData((prev) => ({ ...prev, user: userid }));
@@ -86,7 +86,7 @@ const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
       setTransactions(combinedTransactions);
       setSuggestions(suggestionsRes.data);
       setCustomers(customersRes.data);
-      setCategories(categoriesRes.data);      
+      setCategories(categoriesRes.data);
     } catch (err) {
       setError('Failed to load data. Please try again later.');
       console.error('Fetch error:', err);
@@ -297,7 +297,7 @@ const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
               onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
               aria-label="Start Date"
-                max={today}
+              max={today}
 
             />
             <input
@@ -306,7 +306,7 @@ const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
               aria-label="End Date"
-                max={today}
+              max={today}
 
             />
             <select
@@ -316,7 +316,7 @@ const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
               aria-label="Category Filter"
             >
               <option value="">All Categories</option>
-              {CATEGORIES.map((cat,index) => (
+              {CATEGORIES.map((cat, index) => (
                 <option key={index} value={cat.name}>
                   {cat.name}
                 </option>
@@ -487,61 +487,62 @@ const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
                   aria-label="Upload Receipt Image"
                 />
               )}
-<input
-  type="text"
-  placeholder="Search or add customer"
-  value={formData.customerName}
-  onChange={(e) => {
-    setFormData({ ...formData, customerName: e.target.value });
-    setShowCustomerForm(
-      !customers.some(
-        (c) => c.name.toLowerCase() === e.target.value.toLowerCase()
-      )
-    );
-  }}
+              <input
+                type="text"
+                placeholder="Search or add customer"
+                value={formData.customerName}
+                onChange={(e) => {
+                  setFormData({ ...formData, customerName: e.target.value });
+                  setShowCustomerForm(
+                    !customers.some(
+                      (c) => c.name.toLowerCase() === e.target.value.toLowerCase()
+                    )
+                  );
+                }}
+                
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-  list="customers"
-  required
-  aria-label="Customer Name"
-/>
+                list="customers"
+                required
+                aria-label="Customer Name"
+              />
 
-<datalist id="customers">
-  {customers.map((c) => (
-    <option key={c._id} value={c.name} />
-  ))}
-</datalist>
+              <datalist id="customers">
+                {customers.map((c) => (
+                  <option key={c._id} value={c.name} />
+                ))}
+              </datalist>
 
-<AnimatePresence>
-  {showCustomerForm && (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="mt-4 p-4 rounded-xl bg-indigo-50 shadow-md border border-indigo-200 space-y-4"
-    >
-      <div className="flex flex-col">
-        <label className="text-sm text-indigo-700 font-medium mb-1">Phone (optional)</label>
-        <input
-          type="text"
-          placeholder="Enter phone number"
-          value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          className="p-3 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-          aria-label="Customer Phone"
-        />
-      </div>
-      <button
-        type="button"
-        onClick={handleAddCustomer}
-        className="w-full py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium shadow-sm"
-        aria-label="Add New Customer"
-      >
-        Add Customer
-      </button>
-    </motion.div>
-  )}
-</AnimatePresence>
-              
+              <AnimatePresence>
+                {showCustomerForm && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="mt-4 p-4 rounded-xl bg-indigo-50 shadow-md border border-indigo-200 space-y-4"
+                  >
+                    <div className="flex flex-col">
+                      <label className="text-sm text-indigo-700 font-medium mb-1">Phone (optional)</label>
+                      <input
+                        type="text"
+                        placeholder="Enter phone number"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="p-3 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                        aria-label="Customer Phone"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddCustomer}
+                      className="w-full py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium shadow-sm"
+                      aria-label="Add New Customer"
+                    >
+                      Add Customer
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <input
                 type="number"
                 placeholder="Amount"
@@ -568,7 +569,7 @@ const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
                 aria-label="Transaction Category"
               >
                 <option value="">Select Category</option>
-                {CATEGORIES.map((cat,index) => (
+                {CATEGORIES.map((cat, index) => (
                   <option key={index} value={cat.name}>
                     {cat.name}
                   </option>
@@ -594,7 +595,7 @@ const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 aria-label="Transaction Date"
-                  max={today}
+                max={today}
 
               />
               <label className="flex items-center text-gray-200">

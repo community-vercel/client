@@ -8,6 +8,7 @@ export default function Settings() {
   const [settings, setSettings] = useState({ siteName: '', phone: '', logo: '' });
   const [logoFile, setLogoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [message, setMessage] = useState(null); // State for success message
 
   useEffect(() => {
     fetchSettings();
@@ -31,12 +32,20 @@ export default function Settings() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = { siteName: settings.siteName, phone: settings.phone };
-    if (logoFile) data.logo = logoFile;
-    await updateSettings(data);
-    fetchSettings();
-    setLogoFile(null);
-    setPreviewUrl(null);
+    try {
+      const data = { siteName: settings.siteName, phone: settings.phone };
+      if (logoFile) data.logo = logoFile;
+      await updateSettings(data);
+      setMessage('Settings updated successfully!');
+      fetchSettings();
+      setLogoFile(null);
+      setPreviewUrl(null);
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      setMessage('Failed to update settings. Please try again.');
+      setTimeout(() => setMessage(null), 3000);
+    }
   };
 
   return (
@@ -50,6 +59,23 @@ export default function Settings() {
       >
         Site Settings
       </motion.h1>
+
+      {/* Success/Error Message */}
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            className={`w-full max-w-lg p-4 mb-4 rounded-lg text-white text-center ${
+              message.includes('successfully') ? 'bg-green-600' : 'bg-red-600'
+            }`}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {message}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Form */}
       <motion.form

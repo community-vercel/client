@@ -2,33 +2,39 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useState,useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Menu, X, LogOut } from 'lucide-react';
-import { getSettings} from '../lib/api';
+import { getSettings } from '../lib/api';
 
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [settings, setSettings] = useState({ siteName: '', phone: '', logo: '' });
-  const [logoFile, setLogoFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [settings, setSettings] = useState(null); // Initialize as null
+  const [isLoading, setIsLoading] = useState(true); // Loading state
 
   useEffect(() => {
     fetchSettings();
   }, []);
 
   const fetchSettings = async () => {
-    const { data } = await getSettings();
-    if (data) setSettings(data);
+    try {
+      const { data } = await getSettings();
+      if (data) {
+        setSettings(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    } finally {
+      setIsLoading(false); // Set loading to false after API call
+    }
   };
+
   // Handle logout
   const handleLogout = () => {
     localStorage.removeItem('token');
-      
     localStorage.removeItem('userid');
-        localStorage.removeItem('role');
-
+    localStorage.removeItem('role');
     setIsOpen(false);
     router.push('/login');
   };
@@ -46,21 +52,22 @@ export default function Navbar() {
     { href: '/reports', label: 'Reports' },
   ];
 
-
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-blue-900 via-indigo-800 to-purple-900 text-white shadow-lg backdrop-blur-md bg-opacity-80 transition-shadow duration-300 hover:shadow-xl">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         {/* Logo and App Title */}
         <Link href="/dashboard" className="flex items-center gap-3 group">
-<img
-  
-  src={settings?.logo && settings.logo.trim() !== '' ? settings.logo : '/default-logo.png'}
-  alt={settings?.siteName || 'Logo'}
-  className="h-14 w-14 aspect-square object-cover rounded-full border-2 border-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 ease-in-out shadow-md group-hover:shadow-yellow-500/50"
-/>
-
+          {isLoading ? (
+            <div className="h-14 w-14 bg-gray-300 rounded-full animate-pulse"></div> // Placeholder for logo
+          ) : (
+            <img
+              src={settings?.logo && settings.logo.trim() !== '' ? settings.logo : '/default-logo.png'}
+              alt={settings?.siteName || 'Logo'}
+              className="h-14 w-14 aspect-square object-cover rounded-full border-2 border-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 ease-in-out shadow-md group-hover:shadow-yellow-500/50"
+            />
+          )}
           <span className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-green-300 to-yellow-400 group-hover:scale-105 transition-transform duration-300">
-            {settings.siteName || 'Digital Cashbook'}
+            {isLoading ? <span className="w-32 h-6 bg-gray-300 animate-pulse rounded"></span> : settings?.siteName || 'Digital Cashbook'}
           </span>
         </Link>
 
@@ -82,7 +89,20 @@ export default function Navbar() {
           } md:flex md:items-center md:space-x-8 overflow-hidden md:overflow-visible shadow-lg md:shadow-none`}
         >
           <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-8 p-6 md:p-0">
-          
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`text-lg font-medium transition-colors duration-200 ${
+                  pathname === link.href
+                    ? 'text-yellow-400 border-b-2 border-yellow-400'
+                    : 'hover:text-yellow-300'
+                }`}
+                onClick={() => setIsOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ))}
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 py-2 px-6 text-lg font-medium bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 rounded-lg transition-all duration-300 hover:scale-105 shadow-md hover:shadow-red-500/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-blue-900"
@@ -90,9 +110,9 @@ export default function Navbar() {
               <LogOut size={18} />
               Logout
             </button>
-         
           </div>
         </div>
       </div>
     </nav>
-  )}
+  );
+}

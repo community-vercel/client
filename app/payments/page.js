@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback,useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Modal from '../../components/Modal';
 import TransactionTable from '../../components/TransactionTable';
@@ -8,7 +8,7 @@ import SummaryDashboard from '../../components/SummaryDashboard';
 import api from '../../lib/api';
 import { formatCurrency, downloadCSV } from '../utils/helpers';
 import CustomerSearch from '@/components/CustomerSearc';
-
+import Fuse from 'fuse.js';
 // Animation variants for consistent transitions
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -248,6 +248,56 @@ export default function Transactions() {
     }));
     downloadCSV(csvData, 'transactions.csv');
   };
+  const [searchResults, setSearchResults] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const inputRef = useRef(null);
+
+  // Initialize Fuse.js with customers
+  const fuse = new Fuse(customers, {
+    keys: ['name'],
+    threshold: 0.3, // Adjust for fuzzy matching sensitivity (0.0 = exact match, 1.0 = very loose)
+    includeScore: true,
+  });
+
+  // Handle input change and search
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, customerName: value });
+
+    // Check if input matches any existing customer (case-insensitive)
+    const customerExists = customers.some(
+      (c) => c.name.toLowerCase() === value.toLowerCase()
+    );
+    setShowCustomerForm(!customerExists);
+
+    // Perform fuzzy search with Fuse.js
+    if (value.trim()) {
+      const results = fuse.search(value).map((result) => result.item);
+      setSearchResults(results);
+      setIsDropdownOpen(true);
+    } else {
+      setSearchResults([]);
+      setIsDropdownOpen(false);
+    }
+  };
+
+  // Handle selecting a customer from the dropdown
+  const handleSelectCustomer = (customer) => {
+    setFormData({ ...formData, customerName: customer.name });
+    setShowCustomerForm(false); // Hide form since customer exists
+    setIsDropdownOpen(false); // Close dropdown
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (inputRef.current && !inputRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-28 px-4 sm:px-6 lg:px-8">
@@ -487,64 +537,71 @@ export default function Transactions() {
                   aria-label="Upload Receipt Image"
                 />
               )}
+             <input
+        type="text"
+        placeholder="Search or add customer"
+        value={formData.customerName}
+        onChange={handleInputChange}
+        onFocus={() => setIsDropdownOpen(!!formData.customerName)} // Open dropdown on focus if input has value
+        className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition placeholder-gray-400"
+        required
+        aria-label="Customer Name"
+        ref={inputRef}
+      />
+
+      {/* Dropdown for Search Results */}
+      <AnimatePresence>
+        {isDropdownOpen && searchResults.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto"
+          >
+            {searchResults.map((customer) => (
+              <div
+                key={customer._id}
+                onClick={() => handleSelectCustomer(customer)}
+                className="px-4 py-2 text-gray-800 hover:bg-indigo-100 cursor-pointer transition-colors duration-200"
+              >
+                {customer.name}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* New Customer Form */}
+      <AnimatePresence>
+        {showCustomerForm && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mt-4 p-4 rounded-xl bg-indigo-50 shadow-md border border-indigo-200 space-y-4"
+          >
+            <div className="flex flex-col">
+              <label className="text-sm text-indigo-700 font-medium mb-1">Phone (optional)</label>
               <input
                 type="text"
-                placeholder="Search or add customer"
-                value={formData.customerName}
-                onChange={(e) => {
-                  setFormData({ ...formData, customerName: e.target.value });
-                  setShowCustomerForm(
-                    !customers.some(
-                      (c) => c.name.toLowerCase() === e.target.value.toLowerCase()
-                    )
-                  );
-                }}
-                
-
-                
-                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-                list="customers"
-                required
-                aria-label="Customer Name"
+                placeholder="Enter phone number"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="p-3 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                aria-label="Customer Phone"
               />
-
-              <datalist id="customers">
-                {customers.map((c) => (
-                  <option key={c._id} value={c.name} />
-                ))}
-              </datalist>
-
-              <AnimatePresence>
-                {showCustomerForm && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="mt-4 p-4 rounded-xl bg-indigo-50 shadow-md border border-indigo-200 space-y-4"
-                  >
-                    <div className="flex flex-col">
-                      <label className="text-sm text-indigo-700 font-medium mb-1">Phone (optional)</label>
-                      <input
-                        type="text"
-                        placeholder="Enter phone number"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="p-3 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                        aria-label="Customer Phone"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleAddCustomer}
-                      className="w-full py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium shadow-sm"
-                      aria-label="Add New Customer"
-                    >
-                      Add Customer
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
+            </div>
+            <button
+              type="button"
+              onClick={handleAddCustomer}
+              className="w-full py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium shadow-sm"
+              aria-label="Add New Customer"
+            >
+              Add Customer
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
               <input
                 type="number"
                 placeholder="Amount"

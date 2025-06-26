@@ -2,14 +2,26 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { Menu, X, LogOut } from 'lucide-react';
+import { getSettings} from '../lib/api';
 
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [settings, setSettings] = useState({ siteName: '', phone: '', logo: '' });
+  const [logoFile, setLogoFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    const { data } = await getSettings();
+    if (data) setSettings(data);
+  };
   // Handle logout
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -39,13 +51,14 @@ export default function Navbar() {
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         {/* Logo and App Title */}
         <Link href="/dashboard" className="flex items-center gap-3 group">
-          <img
-            src="/dcl.png"
-            alt="Digital Cashbook Logo"
-            className="h-14 w-14 object-contain rounded-full border-2 border-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 ease-in-out shadow-md group-hover:shadow-yellow-500/50"
-          />
+<img
+  src={previewUrl || `${settings.logo}`}
+  alt={settings.siteName || 'Logo'}
+  className="h-14 w-14 aspect-square object-cover rounded-full border-2 border-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 ease-in-out shadow-md group-hover:shadow-yellow-500/50"
+/>
+
           <span className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-green-300 to-yellow-400 group-hover:scale-105 transition-transform duration-300">
-            Digital Cashbook
+            {settings.siteName || 'Digital Cashbook'}
           </span>
         </Link>
 

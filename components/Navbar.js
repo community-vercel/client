@@ -89,7 +89,7 @@ export default function Navbar() {
           } md:flex md:items-center md:space-x-8 overflow-hidden md:overflow-visible shadow-lg md:shadow-none`}
         >
           <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-8 p-6 md:p-0">
-    
+        
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 py-2 px-6 text-lg font-medium bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 rounded-lg transition-all duration-300 hover:scale-105 shadow-md hover:shadow-red-500/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-blue-900"

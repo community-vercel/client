@@ -61,7 +61,8 @@ export default function TransactionTable({ transactions, onEdit, onDelete }) {
       <table className="min-w-full bg-green bg-opacity-50 rounded-lg">
        
 
-      <thead className="bg-green-800 text-white sticky top-0 z-10">
+      <thead className="bg-green-800 wp text-white sticky top-0 z-10">
+        
           <tr>
             {['type', 'customerId', 'amount', 'description', 'category', 'date'].map((key) => (
               <th
@@ -75,7 +76,11 @@ export default function TransactionTable({ transactions, onEdit, onDelete }) {
                 </div>
               </th>
             ))}
+            {role === 'admin' && (
             <th className="p-4 text-left">Actions</th>
+            )}
+                        <th className="p-4 text-left"></th>
+
           </tr>
         </thead>
         <tbody>

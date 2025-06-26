@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Home, Download, Upload, BarChart, UserCheck2, ReceiptPoundSterlingIcon, File, Section, Settings, TypeOutline, ChartNoAxesGanttIcon, ChartNoAxesColumn, ChartNoAxesColumnIncreasingIcon, LucideMenuSquare } from 'lucide-react';
+import { Menu, X, Home, Download, Upload, BarChart, UserCheck2, ReceiptPoundSterlingIcon, File, Section, Settings, TypeOutline, ChartNoAxesGanttIcon, ChartNoAxesColumn, ChartNoAxesColumnIncreasingIcon, LucideMenuSquare, UserSquareIcon } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const role = localStorage.getItem('role');
 
   // Handle SSR
   useEffect(() => {
@@ -17,17 +18,22 @@ export default function Sidebar() {
   }, []);
 
   const toggleSidebar = () => setIsOpen(!isOpen);
-
-  const links = [
+  let links = [
     { href: '/dashboard', label: 'Dashboard', icon: <Home size={24} /> },
     { href: '/payments', label: 'Record Management', icon: <File size={24} /> },
     { href: '/customers', label: 'Customer Management', icon: <UserCheck2 size={24} /> },
     { href: '/reports', label: 'Reports', icon: <BarChart size={24} /> },
     { href: '/categories', label: 'Category Management', icon: <LucideMenuSquare size={24} /> },
+    
+    { href: '/user', label: 'User Management', icon: <UserSquareIcon size={24} /> },
+
     { href: '/settings', label: 'Settings', icon: <Settings size={24} /> },
 
   ];
+  if(role){
+  {role !== 'admin' && (links = links.filter(link => link.href !== '/user' && link.href !== '/settings'))}
 
+  }
   // Animation variants for sidebar
   const sidebarVariants = {
     open: {

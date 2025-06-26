@@ -46,6 +46,7 @@ export default function Navbar() {
     { href: '/reports', label: 'Reports' },
   ];
 
+  
   return (
     <nav className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-blue-900 via-indigo-800 to-purple-900 text-white shadow-lg backdrop-blur-md bg-opacity-80 transition-shadow duration-300 hover:shadow-xl">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">

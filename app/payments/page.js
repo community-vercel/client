@@ -16,7 +16,6 @@ const containerVariants = {
 };
 
 
-
 export const PAYMENT_METHODS = ['Credit Card', 'Debit Card', 'Bank Transfer', 'Cash', 'Other'];
 const errorVariants = {
   hidden: { opacity: 0, scale: 0.95 },

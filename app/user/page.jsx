@@ -79,12 +79,12 @@ export default function UserManagement() {
           transition={{ duration: 0.5 }}
           className="mb-6 sm:mb-6 md:mb-6 lg:mb-8"
         >
-          <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-extrabold text-gray-800 tracking-tight">
-            <span className="bg-clip-text text-white to-indigo-800">
+          <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-extrabold text-gray-800 tracking-tight mt-15">
+            <span className="bg-clip-text text-white to-indigo-800 ">
               User Management
             </span>
           </h1>
-          <p className="mt-2 text-base sm:text-base md:text-base lg:text-lg text-gray-200">Manage your users with ease and efficiency.</p>
+          <p className="text-base sm:text-base md:text-base lg:text-lg text-gray-200 mt-2">Manage your users with ease and efficiency.</p>
         </motion.div>
 
         <AnimatePresence>

@@ -168,7 +168,7 @@ export default function Customers() {
         className="w-full max-w-7xl mx-auto space-y-6"
       >
         {/* Header */}
-        <header className="text-center">
+        <header className="text-center mt-15">
           <h1 className="text-3xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight">Customer Management</h1>
           <p className="mt-2 text-base sm:text-base md:text-lg text-gray-300">Efficiently manage your customer relationships and financials.</p>
         </header>

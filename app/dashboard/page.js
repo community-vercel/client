@@ -88,7 +88,7 @@ const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
         transition={{ duration: 0.5 }}
         className="max-w-7xl mx-auto"
       >
-        <h1 className="text-4xl font-extrabold text-white text-center mb-8">
+        <h1 className="text-4xl font-extrabold text-white text-center mb-8 mt-14">
           Financial Dashboard
         </h1>
 

@@ -51,89 +51,151 @@ export default function TransactionTable({ transactions, onEdit, onDelete }) {
 
   const renderSortIcon = (key) => {
     if (sortConfig.key !== key) return <ArrowUpDown size={16} className="ml-1" />;
-    return sortConfig.direction === 'asc'
-      ? <ArrowUp size={16} className="ml-1 text-indigo-500" />
-      : <ArrowDown size={16} className="ml-1 text-indigo-500" />;
+    return sortConfig.direction === 'asc' ? (
+      <ArrowUp size={16} className="ml-1 text-indigo-500" />
+    ) : (
+      <ArrowDown size={16} className="ml-1 text-indigo-500" />
+    );
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full bg-green bg-opacity-50 rounded-lg">
-       
-
-      <thead className="bg-green-800 wp text-white sticky top-0 z-10">
-        
-          <tr>
-            {['type', 'customerId', 'amount', 'description', 'category', 'date'].map((key) => (
-              <th
-                key={key}
-                className="p-4 text-left cursor-pointer hover:bg-indigo-700 transition-all select-none"
-                onClick={() => handleSort(key)}
+    <div className="w-full overflow-x-hidden">
+      {/* Table for md and larger screens */}
+      <div className="hidden md:block overflow-x-hidden">
+        <table className="w-full bg-opacity-50 rounded-lg table-fixed">
+          <thead className="bg-green-800 text-white sticky top-0 z-10">
+            <tr>
+              {['type', 'customerId', 'amount', 'description', 'category', 'date'].map((key) => (
+                <th
+                  key={key}
+                  className="p-3 text-left cursor-pointer hover:bg-indigo-700 transition-all select-none w-[100px] sm:w-[120px] md:w-[150px] lg:w-[180px]"
+                  onClick={() => handleSort(key)}
+                >
+                  <div className="flex items-center capitalize">
+                    {key === 'customerId' ? 'Customer' : key}
+                    {renderSortIcon(key)}
+                  </div>
+                </th>
+              ))}
+              {role === 'admin' && (
+                <th className="p-3 text-left w-[120px] sm:w-[140px] md:w-[160px]">Actions</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedTransactions.map((transaction, index) => (
+              <motion.tr
+                key={transaction._id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="border-t border-gray-700 text-white"
               >
-                <div className="flex items-center capitalize">
-                  {key === 'customerId' ? 'Customer' : key}
-                  {renderSortIcon(key)}
-                </div>
-              </th>
+                <td className="p-3 truncate">
+                  {transaction.type === 'payment' ? 'Debit' : 'Credit'}
+                </td>
+                <td className="p-3 truncate">{transaction.customerId?.name || 'N/A'}</td>
+                <td
+                  className={`p-3 font-semibold truncate ${
+                    transaction.type === 'payment' ? 'text-red-600' : 'text-green-600'
+                  }`}
+                >
+                  {formatCurrency(transaction.amount.toFixed(2))}
+                </td>
+                <td className="p-3 truncate">{transaction.description || '—'}</td>
+                <td className="p-3 truncate">{transaction.category || '—'}</td>
+                <td className="p-3 truncate">
+                  {new Date(transaction.date).toLocaleDateString()}
+                </td>
+                {role === 'admin' && (
+                  <td className="p-3">
+                    <div className="flex gap-2">
+                      <motion.button
+                        onClick={() => onEdit(transaction)}
+                        className="text-indigo-600 hover:underline"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Edit
+                      </motion.button>
+                      <motion.button
+                        onClick={() => onDelete(transaction._id, transaction.type)}
+                        className="text-red-500 hover:underline"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        Delete
+                      </motion.button>
+                    </div>
+                  </td>
+                )}
+              </motion.tr>
             ))}
-            {role === 'admin' && (
-            <th className="p-4 text-left">Actions</th>
-            )}
-                        <th className="p-4 text-left"></th>
+          </tbody>
+        </table>
+      </div>
 
-          </tr>
-        </thead>
-        <tbody>
-          {sortedTransactions.map((transaction, index) => (
-           <motion.tr
-              key={transaction._id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="border-t border-gray-700 text-white"
-            >
-
-
-                <td className="p-3">{transaction.type === 'payment' ? 'Debit' : 'Credit'}</td>
-
-
-              <td className="p-4">{transaction.customerId?.name || 'N/A'}</td>
-              <td
-                className={`p-4 font-semibold ${
+      {/* Card layout for sm screens */}
+      <div className="md:hidden space-y-4 p-4 bg-gray-200">
+        {sortedTransactions.map((transaction, index) => (
+          <motion.div
+            key={transaction._id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className=" rounded-lg p-4 shadow-md"
+          >
+            <div className="flex justify-between items-center">
+              <div className="font-semibold">
+                {transaction.type === 'payment' ? 'Debit' : 'Credit'}
+              </div>
+              <div
+                className={`font-semibold ${
                   transaction.type === 'payment' ? 'text-red-600' : 'text-green-600'
                 }`}
               >
                 {formatCurrency(transaction.amount.toFixed(2))}
-              </td>
-              <td className="p-4">{transaction.description || '—'}</td>
-              <td className="p-4">{transaction.category || '—'}</td>
-              <td className="p-4">{new Date(transaction.date).toLocaleDateString()}</td>
-              <td className="p-4">
-                {role === 'admin' && (
-                  <div className="flex gap-2">
-                    <motion.button
-                      onClick={() => onEdit(transaction)}
-                      className="text-indigo-600 hover:underline"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Edit
-                    </motion.button>
-                    <motion.button
-                      onClick={() => onDelete(transaction._id, transaction.type)}
-                      className="text-red-500 hover:underline"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Delete
-                    </motion.button>
-                  </div>
-                )}
-              </td>
-            </motion.tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+            </div>
+            <div className="mt-2">
+              <span className="font-medium">Customer: </span>
+              {transaction.customerId?.name || 'N/A'}
+            </div>
+            <div>
+              <span className="font-medium">Description: </span>
+              {transaction.description || '—'}
+            </div>
+            <div>
+              <span className="font-medium">Category: </span>
+              {transaction.category || '—'}
+            </div>
+            <div>
+              <span className="font-medium">Date: </span>
+              {new Date(transaction.date).toLocaleDateString()}
+            </div>
+            {role === 'admin' && (
+              <div className="flex gap-4 mt-3">
+                <motion.button
+                  onClick={() => onEdit(transaction)}
+                  className="text-indigo-600 hover:underline"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Edit
+                </motion.button>
+                <motion.button
+                  onClick={() => onDelete(transaction._id, transaction.type)}
+                  className="text-red-500 hover:underline"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Delete
+                </motion.button>
+              </div>
+            )}
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -23,17 +23,15 @@ export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false
   return (
     <motion.form
       initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1,
-
-System: 1 }}
+      animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5 }}
-            className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl space-y-5"
+      className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-4 sm:p-4 md:p-6 lg:p-6 rounded-xl shadow-xl space-y-4 w-full"
       onSubmit={handleSubmit}
     >
-      <h2 className="text-xl font-semibold text-gray-800 mb-6">
+      <h2 className="text-lg sm:text-lg md:text-xl lg:text-xl font-semibold text-gray-800 mb-4">
         {isEdit ? 'Edit User' : 'Add New User'}
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-200">Username</label>
           <input
@@ -71,10 +69,10 @@ System: 1 }}
           </select>
         </div>
       </div>
-      <div className="mt-6 flex space-x-4">
+      <div className="mt-4 flex flex-col sm:flex-col md:flex-row md:space-x-4 gap-4">
         <button
           type="submit"
-              className="mt-4 w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"
+          className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"
         >
           {isEdit ? 'Update' : 'Add'} User
         </button>
@@ -82,7 +80,7 @@ System: 1 }}
           <button
             type="button"
             onClick={onCancel}
-            className="bg-gray-300 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors"
+            className="w-full sm:w-full md:w-auto bg-gray-300 text-gray-800 px-6 py-2 rounded-md hover:bg-gray-400 transition-colors"
           >
             Cancel
           </button>

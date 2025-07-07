@@ -71,20 +71,20 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-28">
-      <div className="container mx-auto p-6 sm:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-10 px-4 sm:px-4 md:px-6 lg:p-6">
+      <div className="w-full max-w-7xl mx-auto overflow-x-hidden sm:p-4 md:p-6 lg:p-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mb-8"
+          className="mb-6 sm:mb-6 md:mb-6 lg:mb-8"
         >
-          <h1 className="text-4xl font-extrabold text-gray-800 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-extrabold text-gray-800 tracking-tight">
             <span className="bg-clip-text text-white to-indigo-800">
               User Management
             </span>
           </h1>
-          <p className="mt-2 text-gray-200 text-lg">Manage your users with ease and efficiency.</p>
+          <p className="mt-2 text-base sm:text-base md:text-base lg:text-lg text-gray-200">Manage your users with ease and efficiency.</p>
         </motion.div>
 
         <AnimatePresence>

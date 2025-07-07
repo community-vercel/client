@@ -30,16 +30,16 @@ export default function UserTable({ users, onUpdate, onDelete }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-white shadow-lg rounded-xl overflow-hidden mt-2"
+      className="bg-white shadow-lg rounded-xl mt-2 w-full"
     >
-      <div className="overflow-x-auto">
-        <table className="min-w-full ">
+      <div className="overflow-x-hidden">
+        <table className="w-full table-fixed">
           <thead>
             <tr className="bg-green-800 text-white">
-              <th className="py-4 px-6 text-left font-semibold">Username</th>
-              <th className="py-4 px-6 text-left font-semibold">Role</th>
-              <th className="py-4 px-6 text-left font-semibold">Created At</th>
-              <th className="py-4 px-6 text-left font-semibold">Actions</th>
+              <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Username</th>
+              <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Role</th>
+              <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Created At</th>
+              <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -51,34 +51,34 @@ export default function UserTable({ users, onUpdate, onDelete }) {
                 animate={{ opacity: 1 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <td className="py-4 px-6">{user.username}</td>
-                <td className="py-4 px-6">
+                <td className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-sm sm:text-base truncate">{user.username}</td>
+                <td className="py-2 px-2 sm:px-3 md:px-4 lg:px-6">
                   <span
-                    className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                    className={`inline-block px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
                       user.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-green-100 text-green-800'
                     }`}
                   >
                     {user.role}
                   </span>
                 </td>
-                <td className="py-4 px-6">
+                <td className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-sm sm:text-base truncate">
                   {new Date(user.createdAt).toLocaleDateString('en-US', { timeZone: 'Asia/Karachi' })}
                 </td>
                 {role === 'admin' && (
-                <td className="py-4 px-6 flex space-x-3">
-                  <button
-                    onClick={() => handleEdit(user)}
-                    className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(user._id)}
-                    className="text-red-600 hover:text-red-800 font-medium transition-colors"
-                  >
-                    Delete
-                  </button>
-                </td>
+                  <td className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 flex flex-col sm:flex-col md:flex-row md:space-x-3 gap-2">
+                    <button
+                      onClick={() => handleEdit(user)}
+                      className="text-indigo-600 hover:text-indigo-800 font-medium text-sm sm:text-base transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(user._id)}
+                      className="text-red-600 hover:text-red-800 font-medium text-sm sm:text-base transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </td>
                 )}
               </motion.tr>
             ))}

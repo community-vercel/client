@@ -160,17 +160,17 @@ export default function Customers() {
   };
 
   return (
-    <section className=" bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-28 px-4 sm:px-6 lg:px-8">
+    <section className="bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-10 px-4 sm:px-6 md:px-6 lg:px-8">
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="max-w-7xl mx-auto space-y-8"
+        className="w-full max-w-7xl mx-auto space-y-6"
       >
         {/* Header */}
         <header className="text-center">
-          <h1 className="text-4xl font-extrabold text-white tracking-tight">Customer Management</h1>
-          <p className="mt-2 text-lg text-gray-300">Efficiently manage your customer relationships and financials.</p>
+          <h1 className="text-3xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight">Customer Management</h1>
+          <p className="mt-2 text-base sm:text-base md:text-lg text-gray-300">Efficiently manage your customer relationships and financials.</p>
         </header>
 
         {/* Error Message */}
@@ -193,15 +193,15 @@ export default function Customers() {
         {!loading && (
           <motion.div
             variants={containerVariants}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 bg-gray-800 bg-opacity-60 backdrop-blur-lg p-4 sm:p-4 md:p-6 rounded-xl shadow-xl"
           >
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-300 uppercase">Total Customers</p>
-              <p className="text-2xl font-bold text-indigo-400 mt-2">{customers.length}</p>
+              <p className="text-xl sm:text-xl md:text-2xl font-bold text-indigo-400 mt-2">{customers.length}</p>
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-300 uppercase">Total Balance</p>
-              <p className="text-2xl font-bold text-indigo-400 mt-2">
+              <p className="text-xl sm:text-xl md:text-2xl font-bold text-indigo-400 mt-2">
                 {formatCurrency(customers.reduce((sum, c) => sum + (c.balance || 0), 0))}
               </p>
             </div>
@@ -212,10 +212,10 @@ export default function Customers() {
         <motion.div variants={containerVariants}>
           <form
             onSubmit={handleSubmit}
-            className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl space-y-5"
+            className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-4 sm:p-4 md:p-6 rounded-xl shadow-xl space-y-5"
           >
-            <h2 className="text-xl font-semibold text-white mb-4">Add New Customer</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <h2 className="text-lg sm:text-lg md:text-xl font-semibold text-white mb-4">Add New Customer</h2>
+            <div className="grid grid-cols-1 gap-4">
               <input
                 type="text"
                 name="name"
@@ -241,7 +241,7 @@ export default function Customers() {
                 placeholder="Address (optional)"
                 value={formData.address}
                 onChange={handleInputChange}
-                className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition sm:col-span-2"
+                className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 aria-label="Customer Address"
               />
             </div>
@@ -256,18 +256,18 @@ export default function Customers() {
         </motion.div>
 
         {/* Search and Report Format */}
-        <motion.div variants={containerVariants} className="flex flex-col sm:flex-row gap-4">
+        <motion.div variants={containerVariants} className="flex flex-col sm:flex-col md:flex-row gap-4">
           <div className="flex-1">
             <input
               type="text"
               placeholder="Search by name or phone"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full p-3 bg-gray-700 text-white border Snehal border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+              className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
               aria-label="Search Customers"
             />
           </div>
-          <div className="w-full sm:w-48">
+          <div className="w-full sm:w-full md:w-36">
             <select
               value={reportFormat}
               onChange={(e) => setReportFormat(e.target.value)}
@@ -287,7 +287,7 @@ export default function Customers() {
         {selectedCustomers.size > 0 && (
           <motion.div
             variants={containerVariants}
-            className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-4 rounded-xl shadow-xl flex justify-between items-center"
+            className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-4 rounded-xl shadow-xl flex flex-col sm:flex-col md:flex-row md:justify-between md:items-center gap-4"
           >
             <p className="text-white">{selectedCustomers.size} customer(s) selected</p>
             <button
@@ -331,7 +331,7 @@ export default function Customers() {
                 <motion.div
                   key={customer._id}
                   variants={itemVariants}
-                  className="p-4 bg-gray-800 bg-opacity-60 backdrop-blur-lg rounded-xl shadow-xl flex items-center justify-between hover:bg-opacity-70 transition"
+                  className="p-4 bg-gray-800 bg-opacity-60 backdrop-blur-lg rounded-xl shadow-xl flex flex-col sm:flex-col md:flex-row md:items-center md:justify-between gap-4 hover:bg-opacity-70 transition"
                 >
                   <div className="flex items-center space-x-4">
                     {/* <input
@@ -355,24 +355,24 @@ export default function Customers() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => openTransactionModal(customer)}
-                      className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
+                      className="bg-green-500 text-white px-3 sm:px-3 md:px-4 py-2 rounded-lg hover:bg-green-600 transition"
                       aria-label={`Add Transaction for ${customer.name}`}
                     >
                       Add Transaction
                     </button>
                     <button
                       onClick={() => handleGenerateReport(customer._id)}
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+                      className="bg-blue-500 text-white px-3 sm:px-3 md:px-4 py-2 rounded-lg hover:bg-blue-600 transition"
                       aria-label={`Generate Report for ${customer.name}`}
                     >
                       Generate Report
                     </button>
                     <button
                       onClick={() => handleDeleteCustomer(customer._id)}
-                      className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+                      className="bg-red-500 text-white px-3 sm:px-3 md:px-4 py-2 rounded-lg hover:bg-red-600 transition"
                       aria-label={`Delete ${customer.name}`}
                     >
                       Delete

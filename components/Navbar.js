@@ -72,13 +72,13 @@ export default function Navbar() {
         </Link>
 
         {/* Mobile Toggle Button */}
-        <button
+        {/* <button
           onClick={toggleMenu}
           className="md:hidden text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded-full p-2 hover:bg-white/10 transition-colors duration-200"
           aria-label={isOpen ? 'Close menu' : 'Open menu'}
         >
           {isOpen ? <X size={30} /> : <Menu size={30} />}
-        </button>
+        </button> */}
 
         {/* Navigation Links */}
         <div
@@ -88,7 +88,7 @@ export default function Navbar() {
               : 'max-h-0 opacity-0 translate-y-[-20px] md:max-h-screen md:opacity-100 md:translate-y-0'
           } md:flex md:items-center md:space-x-8 overflow-hidden md:overflow-visible shadow-lg md:shadow-none`}
         >
-          <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-8 p-6 md:p-0">
+          {/* <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-8 p-6 md:p-0">
         
             <button
               onClick={handleLogout}
@@ -97,7 +97,7 @@ export default function Navbar() {
               <LogOut size={18} />
               Logout
             </button>
-          </div>
+          </div> */}
         </div>
       </div>
     </nav>

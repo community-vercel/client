@@ -9,7 +9,18 @@ import { formatCurrency } from '../utils/helpers';
 import Modal from '../../components/Modal';
 import Fuse from 'fuse.js';
 import { useRouter } from 'next/navigation';
+import jwtDecode from 'jwt-decode';
 
+// Utility to check if JWT is expired
+function isTokenExpired(token) {
+  try {
+    const { exp } = jwtDecode(token);
+    const now = Date.now() / 1000; // current time in seconds
+    return exp < now;
+  } catch (e) {
+    return true; // invalid token
+  }
+}
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
@@ -305,14 +316,22 @@ export default function Dashboard() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-    const token = localStorage.getItem('token');
 
- useEffect(() => {
-    if (token) {
+ const [token, setToken] = useState(null);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    if (storedToken) {
+      if (isTokenExpired(storedToken)) {
+        localStorage.removeItem('token');
+        router.push('/login');
+      } else {
+        setToken(storedToken); // valid token
+      }
     } else {
-      router.push('/auth/signin');
+      router.push('/login');
     }
-  }, [router, token]);
+  }, [router]);
   return (
     <div className="bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
       <motion.div

@@ -8,6 +8,7 @@ import TransactionTable from '@/components/TransactionTable';
 import { formatCurrency } from '../utils/helpers';
 import Modal from '../../components/Modal';
 import Fuse from 'fuse.js';
+import { useRouter } from 'next/navigation';
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -22,6 +23,8 @@ const errorVariants = {
 export const PAYMENT_METHODS = ['Credit Card', 'Debit Card', 'Bank Transfer', 'Cash', 'Other'];
 
 export default function Dashboard() {
+    const router = useRouter();
+  
   const [data, setData] = useState({
     totalPayables: 0,
     totalReceivables: 0,
@@ -302,7 +305,15 @@ export default function Dashboard() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+    const token = localStorage.getItem('token');
 
+ useEffect(() => {
+    if (token) {
+    } else {
+      router.push('/auth/signin');
+    }
+  }, [router, token]);
+  
   return (
     <div className="bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
       <motion.div

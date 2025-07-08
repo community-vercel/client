@@ -3,16 +3,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 
+
 export default function ProductList({ products: initialProducts }) {
   const [products, setProducts] = useState(initialProducts || []);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [limit] = useState(10); // Number of items per page
+  const [limit] = useState(10);
   const router = useRouter();
   const token = localStorage.getItem('token');
 
-  // Fetch products with search and pagination
   useEffect(() => {
     if (token) {
       fetchProducts();
@@ -23,7 +23,7 @@ export default function ProductList({ products: initialProducts }) {
 
   const fetchProducts = async () => {
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/items`, {
+      const res = await axios.get('http://localhost:5000/api/items', {
         params: { search, page, limit },
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -34,12 +34,12 @@ export default function ProductList({ products: initialProducts }) {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this product?')) {
+    if (confirm('Are you sure you want to delete this item?')) {
       try {
-        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/items/${id}`, {
+        await axios.delete(`http://localhost:5000/api/items/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        fetchProducts(); // Refresh the product list
+        fetchProducts();
       } catch (error) {
       }
     }
@@ -53,7 +53,6 @@ export default function ProductList({ products: initialProducts }) {
 
   return (
     <div className="space-y-6">
-      {/* Search Bar */}
       <div className="flex justify-between items-center">
         <input
           type="text"
@@ -61,13 +60,12 @@ export default function ProductList({ products: initialProducts }) {
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
-            setPage(1); // Reset to first page on search
-          }}
+            setPage(1);
+          }
+          }
           className="p-3 border border-gray-300 rounded-md w-full md:w-1/3 focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
         />
       </div>
-
-      {/* Product Table */}
       <div className="overflow-x-auto bg-white rounded-xl shadow-lg">
         <table className="w-full border-collapse">
           <thead>
@@ -75,6 +73,7 @@ export default function ProductList({ products: initialProducts }) {
               <th className="p-3 text-left font-semibold">Name</th>
               <th className="p-3 text-left font-semibold">Quantity</th>
               <th className="p-3 text-left font-semibold">Price</th>
+              <th className="p-3 text-left font-semibold">Color</th>
               <th className="p-3 text-left font-semibold">Barcode</th>
               <th className="p-3 text-left font-semibold">Category</th>
               <th className="p-3 text-left font-semibold">Shelf</th>
@@ -82,27 +81,28 @@ export default function ProductList({ products: initialProducts }) {
             </tr>
           </thead>
           <tbody>
-            {products && products?.length > 0 ? (
-              products?.map((product) => (
+            {products.length > 0 ? (
+              products.map((item) => (
                 <tr
-                  key={product._id}
+                  key={item._id}
                   className="border-b hover:bg-gray-50 transition-colors duration-200"
                 >
-                  <td className="p-3">{product.name}</td>
-                  <td className="p-3">{product.quantity}</td>
-                  <td className="p-3">PKR {product.price.toFixed(2)}</td>
-                  <td className="p-3">{product.barcode || 'N/A'}</td>
-                  <td className="p-3">{product.category}</td>
-                  <td className="p-3">{product.shelf || 'N/A'}</td>
+                  <td className="p-3">{item.productId?.name || 'N/A'}</td>
+                  <td className="p-3">{item.quantity}</td>
+                  <td className="p-3">PKR {item.productId?.price.toFixed(2) || 'N/A'}</td>
+                  <td className="p-3">{item.productId?.color || 'N/A'}</td>
+                  <td className="p-3">{item.barcode || 'N/A'}</td>
+                  <td className="p-3">{item.productId?.category || 'N/A'}</td>
+                  <td className="p-3">{item.shelf || 'N/A'}</td>
                   <td className="p-3 flex space-x-2">
                     <button
-                      onClick={() => router.push(`/products/${product._id}`)}
+                      onClick={() => router.push(`/products/${item._id}`)}
                       className="text-blue-600 hover:text-blue-800 transition-colors duration-200 font-medium"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(product._id)}
+                      onClick={() => handleDelete(item._id)}
                       className="text-red-600 hover:text-red-800 transition-colors duration-200 font-medium"
                     >
                       Delete
@@ -112,17 +112,15 @@ export default function ProductList({ products: initialProducts }) {
               ))
             ) : (
               <tr>
-                <td colSpan="7" className="p-4 text-center text-gray-500">
-                  No products found.
+                <td colSpan="8" className="p-4 text-center text-gray-500">
+                  No items found.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      {/* Pagination Controls */}
-      {products && products?.length > 0 && (
+      {products.length > 0 && (
         <div className="flex justify-between items-center mt-4">
           <div className="text-gray-600">
             Page {page} of {totalPages}
@@ -159,4 +157,5 @@ export default function ProductList({ products: initialProducts }) {
         </div>
       )}
     </div>
-  )}
+  );
+}

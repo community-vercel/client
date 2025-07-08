@@ -69,7 +69,19 @@ export default function Dashboard() {
               href="/products/add"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
-              Add Product
+              Add Items
+            </Link>
+             <Link
+              href="/product"
+              className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
+            >
+              Manage Product
+            </Link>
+              <Link
+              href="/colors"
+              className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
+            >
+              Manage Colors
             </Link>
             <button
               onClick={() => setIsScanning(!isScanning)}

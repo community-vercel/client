@@ -1,4 +1,5 @@
 'use client';
+import { jwtDecode } from 'jwt-decode';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,16 +10,17 @@ import { formatCurrency } from '../utils/helpers';
 import Modal from '../../components/Modal';
 import Fuse from 'fuse.js';
 import { useRouter } from 'next/navigation';
-import jwtDecode from 'jwt-decode';
 
 // Utility to check if JWT is expired
 function isTokenExpired(token) {
   try {
-    const { exp } = jwtDecode(token);
-    const now = Date.now() / 1000; // current time in seconds
+    const decoded = jwtDecode(token); // Note the capital D
+    const { exp } = decoded;
+    const now = Date.now() / 1000;
     return exp < now;
-  } catch (e) {
-    return true; // invalid token
+  } catch (error) {
+    console.error('Error decoding token:', error);
+    return true
   }
 }
 const containerVariants = {
@@ -323,8 +325,8 @@ export default function Dashboard() {
     const storedToken = localStorage.getItem('token');
     if (storedToken) {
       if (isTokenExpired(storedToken)) {
-        localStorage.removeItem('token');
-        router.push('/login');
+        // localStorage.removeItem('token');
+        // router.push('/login');
       } else {
         setToken(storedToken); // valid token
       }

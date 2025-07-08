@@ -1,20 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback,useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Modal from '../../components/Modal';
 import TransactionTable from '../../components/TransactionTable';
 import SummaryDashboard from '../../components/SummaryDashboard';
 import api from '../../lib/api';
 import { formatCurrency, downloadCSV } from '../utils/helpers';
-import CustomerSearch from '@/components/CustomerSearc';
 import Fuse from 'fuse.js';
+
 // Animation variants for consistent transitions
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 };
-
 
 export const PAYMENT_METHODS = ['Credit Card', 'Debit Card', 'Bank Transfer', 'Cash', 'Other'];
 const errorVariants = {
@@ -23,21 +22,22 @@ const errorVariants = {
 };
 
 export default function Transactions() {
-  const [transactions, setTransactions] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [CATEGORIES, setCategories] = useState([]);
-  console.log('CATEGORIES', CATEGORIES);
   const [formData, setFormData] = useState({
     transactionType: '',
     customerId: '',
     customerName: '',
     phone: '',
-    amount: '',
+    totalAmount: '',
+    payable: '',
+    receivable: '',
     description: '',
     category: '',
-    type: '',
+    paymentMethod: '',
     date: new Date().toISOString().split('T')[0],
+    dueDate: new Date().toISOString().split('T')[0],
     isRecurring: false,
     image: null,
     user: null,
@@ -51,6 +51,7 @@ export default function Transactions() {
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [userid, setUserid] = useState(null);
   const [role, setRole] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Initialize user ID from localStorage
   useEffect(() => {
@@ -59,31 +60,25 @@ export default function Transactions() {
     if (userRole) setRole(userRole);
     if (id) setUserid(id);
   }, []);
-  const today = new Date().toISOString().split('T')[0]; // format: yyyy-mm-dd
+
+  const today = new Date().toISOString().split('T')[0];
+
   // Update formData with user ID
   useEffect(() => {
     if (userid) setFormData((prev) => ({ ...prev, user: userid }));
   }, [userid]);
 
-  // Fetch transactions, suggestions, and customers
+  // Fetch suggestions, customers, and categories
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const [paymentsRes, receiptsRes, suggestionsRes, customersRes, categoriesRes] = await Promise.all([
-        api.get(`/payments?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}`),
-        api.get(`/receipts?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}`),
-        api.get('/payments/recurring-suggestions'),
+      const [suggestionsRes, customersRes, categoriesRes] = await Promise.all([
+        api.get('/transactions/recurring'),
         api.get('/customers'),
         api.get('/categories'),
       ]);
 
-      const combinedTransactions = [
-        ...paymentsRes.data.map((t) => ({ ...t, type: 'payment' })),
-        ...receiptsRes.data.map((t) => ({ ...t, type: 'receipt' })),
-      ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-      setTransactions(combinedTransactions);
       setSuggestions(suggestionsRes.data);
       setCustomers(customersRes.data);
       setCategories(categoriesRes.data);
@@ -93,7 +88,7 @@ export default function Transactions() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -101,7 +96,7 @@ export default function Transactions() {
 
   // Handle transaction type selection
   const handleTransactionTypeSelect = (type) => {
-    setFormData({ ...formData, transactionType: type });
+    setFormData({ ...formData, transactionType: type, payable: '', receivable: '' });
     setEntryMode(null);
     setIsModalOpen(true);
   };
@@ -149,12 +144,10 @@ export default function Transactions() {
     try {
       const form = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null) form.append(key, value);
+        if (value !== null && value !== '') form.append(key === 'paymentMethod' ? 'type' : key, value);
       });
 
-      const endpoint = editingTransaction
-        ? `/${formData.transactionType}s/${editingTransaction._id}`
-        : `/${formData.transactionType}s`;
+      const endpoint = editingTransaction ? `/transactions/${editingTransaction._id}` : `/transactions`;
       const method = editingTransaction ? api.put : api.post;
 
       await method(endpoint, form, { headers: { 'Content-Type': 'multipart/form-data' } });
@@ -165,11 +158,14 @@ export default function Transactions() {
         customerId: '',
         customerName: '',
         phone: '',
-        amount: '',
+        totalAmount: '',
+        payable: '',
+        receivable: '',
         description: '',
         category: '',
-        type: '',
+        paymentMethod: '',
         date: new Date().toISOString().split('T')[0],
+        dueDate: new Date().toISOString().split('T')[0],
         isRecurring: false,
         image: null,
         user: userid,
@@ -177,9 +173,9 @@ export default function Transactions() {
       setIsModalOpen(false);
       setEntryMode(null);
       setEditingTransaction(null);
-      await fetchData();
+      setRefreshTrigger((prev) => prev + 1); // Trigger refresh for both table and dashboard
     } catch (err) {
-      setError(err.response?.data?.message || `Error saving ${formData.transactionType}.`);
+      setError(err.response?.data?.message || 'Error saving transaction.');
       console.error('Submit error:', err);
     }
   };
@@ -188,15 +184,18 @@ export default function Transactions() {
   const handleEdit = (transaction) => {
     setEditingTransaction(transaction);
     setFormData({
-      transactionType: transaction.type,
+      transactionType: transaction.transactionType,
       customerId: transaction.customerId._id,
-      customerName: customers.find((c) => c._id === transaction.customerId._id)?.name || '',
+      customerName: customers.find((c) => c._id === transaction.customerId._id)?.name || transaction.customerId.name || '',
       phone: '',
-      amount: transaction.amount,
+      totalAmount: transaction.totalAmount || '',
+      payable: transaction.payable || '',
+      receivable: transaction.receivable || '',
       description: transaction.description,
       category: transaction.category,
-      type: transaction.type || '',
+      paymentMethod: transaction.type || '',
       date: transaction.date.split('T')[0],
+      dueDate: transaction.dueDate ? transaction.dueDate.split('T')[0] : new Date().toISOString().split('T')[0],
       isRecurring: transaction.isRecurring,
       image: null,
       user: userid,
@@ -206,12 +205,12 @@ export default function Transactions() {
   };
 
   // Handle transaction deletion
-  const handleDelete = async (id, transactionType) => {
+  const handleDelete = async (id) => {
     try {
-      await api.delete(`/${transactionType}s/${id}`);
-      await fetchData();
+      await api.delete(`/transactions/${id}`);
+      setRefreshTrigger((prev) => prev + 1); // Trigger refresh for both table and dashboard
     } catch (err) {
-      setError(`Error deleting ${transactionType}.`);
+      setError('Error deleting transaction.');
       console.error('Delete error:', err);
     }
   };
@@ -219,15 +218,18 @@ export default function Transactions() {
   // Apply recurring suggestion
   const applySuggestion = (suggestion) => {
     setFormData({
-      transactionType: 'payment',
+      transactionType: suggestion.transactionType || 'payable',
       customerId: '',
       customerName: '',
       phone: '',
-      amount: suggestion.amount,
+      totalAmount: suggestion.totalAmount || '',
+      payable: suggestion.payable || '',
+      receivable: suggestion.receivable || '',
       description: suggestion.description,
       category: suggestion.category,
-      type: suggestion.type || '',
+      paymentMethod: suggestion.type || '',
       date: new Date().toISOString().split('T')[0],
+      dueDate: suggestion.dueDate ? suggestion.dueDate.split('T')[0] : new Date().toISOString().split('T')[0],
       isRecurring: true,
       image: null,
       user: userid,
@@ -237,17 +239,30 @@ export default function Transactions() {
   };
 
   // Export transactions to CSV
-  const handleExport = () => {
-    const csvData = transactions.map((t) => ({
-      Date: t.date,
-      Type: t.type,
-      Customer: customers.find((c) => c._id === t.customerId._id)?.name || '',
-      Amount: formatCurrency(t.amount),
-      Category: t.category,
-      Description: t.description,
-    }));
-    downloadCSV(csvData, 'transactions.csv');
+  const handleExport = async () => {
+    try {
+      const response = await api.get(
+        `/transactions?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}`
+      );
+      const transactions = response.data.transactions;
+      const csvData = transactions.map((t) => ({
+        Date: t.date,
+        TransactionType: t.transactionType,
+        Customer: customers.find((c) => c._id === t.customerId._id)?.name || t.customerId.name || '',
+        TotalAmount: formatCurrency(t.totalAmount),
+        Payable: formatCurrency(t.payable),
+        Receivable: formatCurrency(t.receivable),
+        DueDate: t.dueDate ? t.dueDate.split('T')[0] : '',
+        Category: t.category,
+        Description: t.description,
+      }));
+      downloadCSV(csvData, 'transactions.csv');
+    } catch (err) {
+      setError('Error exporting transactions.');
+      console.error('Export error:', err);
+    }
   };
+
   const [searchResults, setSearchResults] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const inputRef = useRef(null);
@@ -255,7 +270,7 @@ export default function Transactions() {
   // Initialize Fuse.js with customers
   const fuse = new Fuse(customers, {
     keys: ['name'],
-    threshold: 0.3, // Adjust for fuzzy matching sensitivity (0.0 = exact match, 1.0 = very loose)
+    threshold: 0.3,
     includeScore: true,
   });
 
@@ -264,13 +279,9 @@ export default function Transactions() {
     const value = e.target.value;
     setFormData({ ...formData, customerName: value });
 
-    // Check if input matches any existing customer (case-insensitive)
-    const customerExists = customers.some(
-      (c) => c.name.toLowerCase() === value.toLowerCase()
-    );
+    const customerExists = customers.some((c) => c.name.toLowerCase() === value.toLowerCase());
     setShowCustomerForm(!customerExists);
 
-    // Perform fuzzy search with Fuse.js
     if (value.trim()) {
       const results = fuse.search(value).map((result) => result.item);
       setSearchResults(results);
@@ -283,9 +294,9 @@ export default function Transactions() {
 
   // Handle selecting a customer from the dropdown
   const handleSelectCustomer = (customer) => {
-    setFormData({ ...formData, customerName: customer.name });
-    setShowCustomerForm(false); // Hide form since customer exists
-    setIsDropdownOpen(false); // Close dropdown
+    setFormData({ ...formData, customerId: customer._id, customerName: customer.name });
+    setShowCustomerForm(false);
+    setIsDropdownOpen(false);
   };
 
   // Close dropdown when clicking outside
@@ -331,7 +342,7 @@ export default function Transactions() {
         {/* Summary Dashboard */}
         {!loading && (
           <motion.div variants={containerVariants}>
-            <SummaryDashboard transactions={transactions} />
+            <SummaryDashboard filters={filters} refresh={refreshTrigger} />
           </motion.div>
         )}
 
@@ -348,7 +359,6 @@ export default function Transactions() {
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
               aria-label="Start Date"
               max={today}
-
             />
             <input
               type="date"
@@ -357,7 +367,6 @@ export default function Transactions() {
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
               aria-label="End Date"
               max={today}
-
             />
             <select
               value={filters.category}
@@ -408,7 +417,7 @@ export default function Transactions() {
                 d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
               />
             </svg>
-            <p className="text-white mt-2">Loading transactions...</p>
+            <p className="text-white mt-2">Loading data...</p>
           </div>
         )}
 
@@ -426,7 +435,7 @@ export default function Transactions() {
                   className="flex justify-between items-center p-4 bg-gray-700 bg-opacity-50 rounded-lg"
                 >
                   <span className="text-gray-200">
-                    {s.description} ({s.category}) - {formatCurrency(s.amount)}
+                    {s.description} ({s.category}) - {formatCurrency(s.totalAmount)}
                   </span>
                   <button
                     onClick={() => applySuggestion(s)}
@@ -445,7 +454,12 @@ export default function Transactions() {
         {!loading && (
           <motion.div variants={containerVariants} className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl">
             <h3 className="text-lg font-semibold text-white mb-4">Recent Transactions</h3>
-            <TransactionTable transactions={transactions} onEdit={handleEdit} onDelete={handleDelete} />
+            <TransactionTable
+              filters={filters}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              refresh={refreshTrigger}
+            />
           </motion.div>
         )}
 
@@ -461,11 +475,14 @@ export default function Transactions() {
               customerId: '',
               customerName: '',
               phone: '',
-              amount: '',
+              totalAmount: '',
+              payable: '',
+              receivable: '',
               description: '',
               category: '',
-              type: '',
+              paymentMethod: '',
               date: new Date().toISOString().split('T')[0],
+              dueDate: new Date().toISOString().split('T')[0],
               isRecurring: false,
               image: null,
               user: userid,
@@ -480,18 +497,18 @@ export default function Transactions() {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-white">Select Transaction Type</h3>
               <button
-                onClick={() => handleTransactionTypeSelect('payment')}
+                onClick={() => handleTransactionTypeSelect('payable')}
                 className="w-full bg-red-500 text-white p-3 rounded-lg hover:bg-red-600 transition"
-                aria-label="Debit Transaction"
+                aria-label="Payable Transaction"
               >
-                Debit (You Gave)
+                Payable (You Owe)
               </button>
               <button
-                onClick={() => handleTransactionTypeSelect('receipt')}
+                onClick={() => handleTransactionTypeSelect('receivable')}
                 className="w-full bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 transition"
-                aria-label="Credit Transaction"
+                aria-label="Receivable Transaction"
               >
-                Credit (You Got)
+                Receivable (Owed to You)
               </button>
             </div>
           ) : !entryMode ? (
@@ -532,84 +549,99 @@ export default function Transactions() {
                 <input
                   type="file"
                   accept="image/*"
+                  name="transactionImage"
                   onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })}
                   className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg"
                   aria-label="Upload Receipt Image"
                 />
               )}
-             <input
-        type="text"
-        placeholder="Search or add customer"
-        value={formData.customerName}
-        onChange={handleInputChange}
-        onFocus={() => setIsDropdownOpen(!!formData.customerName)} // Open dropdown on focus if input has value
-        className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition placeholder-gray-400"
-        required
-        aria-label="Customer Name"
-        ref={inputRef}
-      />
-
-      {/* Dropdown for Search Results */}
-      <AnimatePresence>
-        {isDropdownOpen && searchResults.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto"
-          >
-            {searchResults.map((customer) => (
-              <div
-                key={customer._id}
-                onClick={() => handleSelectCustomer(customer)}
-                className="px-4 py-2 text-gray-800 hover:bg-indigo-100 cursor-pointer transition-colors duration-200"
-              >
-                {customer.name}
-              </div>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* New Customer Form */}
-      <AnimatePresence>
-        {showCustomerForm && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mt-4 p-4 rounded-xl bg-indigo-50 shadow-md border border-indigo-200 space-y-4"
-          >
-            <div className="flex flex-col">
-              <label className="text-sm text-indigo-700 font-medium mb-1">Phone (optional)</label>
               <input
                 type="text"
-                placeholder="Enter phone number"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="p-3 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-                aria-label="Customer Phone"
+                placeholder="Search or add customer"
+                value={formData.customerName}
+                onChange={handleInputChange}
+                onFocus={() => setIsDropdownOpen(!!formData.customerName)}
+                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition placeholder-gray-400"
+                required
+                aria-label="Customer Name"
+                ref={inputRef}
               />
-            </div>
-            <button
-              type="button"
-              onClick={handleAddCustomer}
-              className="w-full py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium shadow-sm"
-              aria-label="Add New Customer"
-            >
-              Add Customer
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+              {/* Dropdown for Search Results */}
+              <AnimatePresence>
+                {isDropdownOpen && searchResults.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute z-10 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto"
+                  >
+                    {searchResults.map((customer) => (
+                      <div
+                        key={customer._id}
+                        onClick={() => handleSelectCustomer(customer)}
+                        className="px-4 py-2 text-gray-800 hover:bg-indigo-100 cursor-pointer transition-colors duration-200"
+                      >
+                        {customer.name}
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* New Customer Form */}
+              <AnimatePresence>
+                {showCustomerForm && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="mt-4 p-4 rounded-xl bg-indigo-50 shadow-md border border-indigo-200 space-y-4"
+                  >
+                    <div className="flex flex-col">
+                      <label className="text-sm text-indigo-700 font-medium mb-1">Phone (optional)</label>
+                      <input
+                        type="text"
+                        placeholder="Enter phone number"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="p-3 rounded-lg bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                        aria-label="Customer Phone"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddCustomer}
+                      className="w-full py-2 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium shadow-sm"
+                      aria-label="Add New Customer"
+                    >
+                      Add Customer
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <input
                 type="number"
-                placeholder="Amount"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                placeholder="Total Amount"
+                value={formData.totalAmount}
+                onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 required
-                aria-label="Transaction Amount"
+                aria-label="Total Amount"
+              />
+              <input
+                type="number"
+                placeholder={formData.transactionType === 'payable' ? 'Amount Payable' : 'Amount Receivable'}
+                value={formData.transactionType === 'payable' ? formData.payable : formData.receivable}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    [formData.transactionType === 'payable' ? 'payable' : 'receivable']: e.target.value,
+                  })
+                }
+                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                required
+                aria-label={formData.transactionType === 'payable' ? 'Amount Payable' : 'Amount Receivable'}
               />
               <input
                 type="text"
@@ -635,8 +667,8 @@ export default function Transactions() {
                 ))}
               </select>
               <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                value={formData.paymentMethod}
+                onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 required
                 aria-label="Payment Method"
@@ -655,7 +687,14 @@ export default function Transactions() {
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
                 aria-label="Transaction Date"
                 max={today}
-
+                required
+              />
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                aria-label="Due Date"
               />
               <label className="flex items-center text-gray-200">
                 <input

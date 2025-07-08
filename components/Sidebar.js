@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Home, Download, Upload, BarChart, UserCheck2, LucideMenuSquare, UserSquareIcon, Settings, LogOut } from 'lucide-react';
+import { Menu, X, Home, Download, Upload, BarChart, UserCheck2, LucideMenuSquare, UserSquareIcon, Settings, LogOut, Database } from 'lucide-react';
 
 export default function Sidebar() {
   const router = useRouter();
@@ -34,6 +34,8 @@ export default function Sidebar() {
     { href: '/customers', label: 'Customer Management', icon: <UserCheck2 size={24} /> },
     { href: '/reports', label: 'Reports', icon: <BarChart size={24} /> },
     { href: '/categories', label: 'Category Management', icon: <LucideMenuSquare size={24} /> },
+        { href: '/products', label: 'Inventory Management', icon: <Database size={24} /> },
+
     { href: '/user', label: 'User Management', icon: <UserSquareIcon size={24} /> },
     { href: '/settings', label: 'Settings', icon: <Settings size={24} /> },
     { href: '#', label: 'Logout', icon: <LogOut size={24} />, onClick: handleLogout },

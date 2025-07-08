@@ -313,10 +313,7 @@ export default function Dashboard() {
       router.push('/auth/signin');
     }
   }, [router, token]);
-
-
   
-
   return (
     <div className="bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
       <motion.div

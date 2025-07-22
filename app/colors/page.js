@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-
 import Link from 'next/link';
 
 export default function ManageColors() {
@@ -17,6 +16,7 @@ export default function ManageColors() {
   const [formData, setFormData] = useState({
     colorName: '',
     code: '',
+    colorCode: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -41,7 +41,7 @@ export default function ManageColors() {
       setColors(res.data.colors);
       setTotalPages(Math.ceil(res.data.total / limit));
     } catch (error) {
-     
+      console.error('Error fetching colors:', error);
     } finally {
       setIsLoading(false);
     }
@@ -49,41 +49,53 @@ export default function ManageColors() {
 
   const handleAddColor = async (e) => {
     e.preventDefault();
-    const { colorName, code } = formData;
-    if (!/^#[0-9A-Fa-f]{6}$/.test(code)) {
+    const { colorName, code, colorCode } = formData;
+    if (code && !/^#[0-9A-Fa-f]{6}$/.test(code)) {
+      alert('Invalid hex code format');
+      return;
+    }
+    if (!/^[A-Z0-9]{3,10}$/.test(colorCode)) {
+      alert('Color code must be alphanumeric and 3-10 characters');
       return;
     }
     try {
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/colors`,
-        { colorName, code },
+        { colorName, code, colorCode },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setFormData({ colorName: '', code: '' });
+      setFormData({ colorName: '', code: '', colorCode: '' });
       setIsAddModalOpen(false);
       fetchColors();
     } catch (error) {
-      
+      console.error('Error adding color:', error);
+      alert(error.response?.data?.message || 'Failed to add color');
     }
   };
 
   const handleEditColor = async (e) => {
     e.preventDefault();
-    const { colorName, code } = formData;
+    const { colorName, code, colorCode } = formData;
     if (!/^#[0-9A-Fa-f]{6}$/.test(code)) {
+      alert('Invalid hex code format');
+      return;
+    }
+    if (!/^[A-Z0-9]{3,10}$/.test(colorCode)) {
+      alert('Color code must be alphanumeric and 3-10 characters');
       return;
     }
     try {
       await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/colors/${editColor._id}`,
-        { colorName, code },
+        { colorName, code, colorCode },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setIsEditModalOpen(false);
       setEditColor(null);
       fetchColors();
     } catch (error) {
-      
+      console.error('Error updating color:', error);
+      alert(error.response?.data?.message || 'Failed to update color');
     }
   };
 
@@ -95,7 +107,8 @@ export default function ManageColors() {
         });
         fetchColors();
       } catch (error) {
-       
+        console.error('Error deleting color:', error);
+        alert(error.response?.data?.message || 'Failed to delete color');
       }
     }
   };
@@ -105,6 +118,7 @@ export default function ManageColors() {
     setFormData({
       colorName: color.colorName,
       code: color.code,
+      colorCode: color.colorCode,
     });
     setIsEditModalOpen(true);
   };
@@ -123,7 +137,7 @@ export default function ManageColors() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-22 px-0 flex">
       <div className="flex-1 flex flex-col">
- <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
+        <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -142,20 +156,18 @@ export default function ManageColors() {
             >
               Add Items
             </Link>
-             <Link
+            <Link
               href="/product"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
               Manage Product
             </Link>
-              <Link
+            <Link
               href="/colors"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
               Manage Colors
             </Link>
-          
-         
           </div>
         </header>
         <main className="p-2 flex-1">
@@ -164,7 +176,7 @@ export default function ManageColors() {
               <h2 className="text-2xl font-semibold text-gray-800">Color Catalog</h2>
               <button
                 onClick={() => {
-                  setFormData({ colorName: '', code: '' });
+                  setFormData({ colorName: '', code: '', colorCode: '' });
                   setIsAddModalOpen(true);
                 }}
                 className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors duration-200"
@@ -175,7 +187,7 @@ export default function ManageColors() {
             <div className="mb-6">
               <input
                 type="text"
-                placeholder="Search by color name or code..."
+                placeholder="Search by color name, code, or color code..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -190,6 +202,7 @@ export default function ManageColors() {
                   <tr className="bg-gray-100 text-gray-700">
                     <th className="p-3 text-left font-semibold">Color Name</th>
                     <th className="p-3 text-left font-semibold">Color Code</th>
+                    <th className="p-3 text-left font-semibold">Hex Code</th>
                     <th className="p-3 text-left font-semibold">Preview</th>
                     <th className="p-3 text-left font-semibold">Actions</th>
                   </tr>
@@ -197,7 +210,7 @@ export default function ManageColors() {
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan="4" className="p-4 text-center text-gray-500">
+                      <td colSpan="5" className="p-4 text-center text-gray-500">
                         Loading...
                       </td>
                     </tr>
@@ -208,6 +221,7 @@ export default function ManageColors() {
                         className="border-b hover:bg-gray-50 transition-colors duration-200"
                       >
                         <td className="p-3">{color.colorName}</td>
+                        <td className="p-3">{color.colorCode}</td>
                         <td className="p-3">{color.code}</td>
                         <td className="p-3">
                           <div
@@ -233,7 +247,7 @@ export default function ManageColors() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="4" className="p-4 text-center text-gray-500">
+                      <td colSpan="5" className="p-4 text-center text-gray-500">
                         No colors found.
                       </td>
                     </tr>
@@ -299,14 +313,25 @@ export default function ManageColors() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Color Code (Hex)</label>
+                <label className="block text-sm font-medium text-gray-700">Color Code (e.g., RED01)</label>
+                <input
+                  type="text"
+                  placeholder="RED01"
+                  value={formData.colorCode}
+                  onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
+                  className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Hex Code</label>
                 <input
                   type="text"
                   placeholder="#FFFFFF"
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                  required
+                  // required
                 />
               </div>
               <div className="flex space-x-2">
@@ -347,7 +372,18 @@ export default function ManageColors() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Color Code (Hex)</label>
+                <label className="block text-sm font-medium text-gray-700">Color Code (e.g., RED01)</label>
+                <input
+                  type="text"
+                  placeholder="RED01"
+                  value={formData.colorCode}
+                  onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
+                  className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Hex Code</label>
                 <input
                   type="text"
                   placeholder="#FFFFFF"

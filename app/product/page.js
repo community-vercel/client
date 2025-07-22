@@ -1,18 +1,13 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import Fuse from 'fuse.js';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Sidebar from '../../components/Sidebar';
 import Link from 'next/link';
 
 export default function ManageProducts() {
   const [products, setProducts] = useState([]);
-  const [colors, setColors] = useState([]);
-  const [filteredColors, setFilteredColors] = useState([]);
-  const [colorSearch, setColorSearch] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -22,42 +17,23 @@ export default function ManageProducts() {
   const [editProduct, setEditProduct] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    price: '',
-    colorId: '',
+    costPrice: '',
+    retailPrice: '',
+    discountPercentage: '',
     category: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [showColorDropdown, setShowColorDropdown] = useState(false);
-  const colorDropdownRef = useRef(null);
   const router = useRouter();
   const token = localStorage.getItem('token');
 
   const categories = ['gallon', 'quarter', 'drums', 'liters'];
 
-  // Initialize Fuse.js for color search
-  const fuse = new Fuse(colors, {
-    keys: ['colorName', 'code'],
-    threshold: 0.3, // Adjust for fuzzy search sensitivity
-  });
-
-  // Handle color search
-  useEffect(() => {
-    if (colorSearch) {
-      const results = fuse.search(colorSearch);
-      setFilteredColors(results.map((result) => result.item));
-    } else {
-      setFilteredColors(colors);
-    }
-  }, [colorSearch, colors]);
-
-  // Fetch products and colors
   useEffect(() => {
     if (!token) {
       router.push('/auth/signin');
     } else {
       fetchProducts();
-      fetchColors();
     }
   }, [search, page, token, router]);
 
@@ -79,49 +55,34 @@ export default function ManageProducts() {
     }
   };
 
-  const fetchColors = async () => {
-    try {
-      const res = await axios.get( `${process.env.NEXT_PUBLIC_API_URL}/colors`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setColors(res.data.colors);
-      setFilteredColors(res.data.colors);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to fetch colors', {
-        position: 'top-right',
-      });
-    }
-  };
-
-  // Handle clicks outside the color dropdown
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (colorDropdownRef.current && !colorDropdownRef.current.contains(event.target)) {
-        setShowColorDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const handleAddProduct = async (e) => {
     e.preventDefault();
-    const { name, price, colorId, category } = formData;
-  
+    const { name, costPrice, retailPrice, discountPercentage, category } = formData;
+
+    // Validate inputs
+    if (costPrice < 0 || retailPrice < 0) {
+      toast.error('Prices cannot be negative', { position: 'top-right' });
+      return;
+    }
+    if (discountPercentage < 0 || discountPercentage > 100) {
+      toast.error('Discount percentage must be between 0 and 100', { position: 'top-right' });
+      return;
+    }
+
     try {
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/product`,
         {
           name,
-          price: Number(price),
-          colorId,
+          costPrice: Number(costPrice),
+          retailPrice: Number(retailPrice),
+          discountPercentage: Number(discountPercentage),
           category,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success('Product added successfully!', { position: 'top-right' });
-      setFormData({ name: '', price: '', colorId: '',  category: '' });
-      setColorSearch('');
+      setFormData({ name: '', costPrice: '', retailPrice: '', discountPercentage: '', category: '' });
       setIsAddModalOpen(false);
       fetchProducts();
     } catch (error) {
@@ -133,15 +94,26 @@ export default function ManageProducts() {
 
   const handleEditProduct = async (e) => {
     e.preventDefault();
-    const { name, price, colorId,  category } = formData;
-   
+    const { name, costPrice, retailPrice, discountPercentage, category } = formData;
+
+    // Validate inputs
+    if (costPrice < 0 || retailPrice < 0) {
+      toast.error('Prices cannot be negative', { position: 'top-right' });
+      return;
+    }
+    if (discountPercentage < 0 || discountPercentage > 100) {
+      toast.error('Discount percentage must be between 0 and 100', { position: 'top-right' });
+      return;
+    }
+
     try {
       await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/product/${editProduct._id}`,
         {
           name,
-          price: Number(price),
-          colorId,
+          costPrice: Number(costPrice),
+          retailPrice: Number(retailPrice),
+          discountPercentage: Number(discountPercentage),
           category,
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -149,7 +121,6 @@ export default function ManageProducts() {
       toast.success('Product updated successfully!', { position: 'top-right' });
       setIsEditModalOpen(false);
       setEditProduct(null);
-      setColorSearch('');
       fetchProducts();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update product', {
@@ -178,11 +149,11 @@ export default function ManageProducts() {
     setEditProduct(product);
     setFormData({
       name: product.name,
-      price: product.price.toString(),
-      colorId: product.colorId?._id || '',
+      costPrice: product.costPrice.toString(),
+      retailPrice: product.retailPrice.toString(),
+      discountPercentage: product.discountPercentage.toString(),
       category: product.category,
     });
-    setColorSearch(product.colorId?.colorName || '');
     setIsEditModalOpen(true);
   };
 
@@ -197,16 +168,15 @@ export default function ManageProducts() {
     router.push('/auth/signin');
   };
 
-  const selectColor = (color) => {
-    setFormData({ ...formData, colorId: color._id });
-    setColorSearch(color.colorName);
-    setShowColorDropdown(false);
+  // Calculate sale price
+  const calculateSalePrice = (retailPrice, discountPercentage) => {
+    return retailPrice - (retailPrice * discountPercentage) / 100;
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-22 px-0 flex">
       <div className="flex-1 flex flex-col">
-     <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
+        <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -225,19 +195,18 @@ export default function ManageProducts() {
             >
               Add Items
             </Link>
-             <Link
+            <Link
               href="/product"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
               Manage Product
             </Link>
-              <Link
+            <Link
               href="/colors"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
               Manage Colors
             </Link>
-         
           </div>
         </header>
         <main className="p-6 flex-1">
@@ -246,8 +215,7 @@ export default function ManageProducts() {
               <h2 className="text-2xl font-semibold text-gray-800">Product Catalog</h2>
               <button
                 onClick={() => {
-                  setFormData({ name: '', price: '', colorId: '', category: '' });
-                  setColorSearch('');
+                  setFormData({ name: '', costPrice: '', retailPrice: '', discountPercentage: '', category: '' });
                   setIsAddModalOpen(true);
                 }}
                 className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors duration-300"
@@ -272,9 +240,10 @@ export default function ManageProducts() {
                 <thead>
                   <tr className="bg-gray-100 text-gray-700">
                     <th className="p-3 text-left font-semibold">Name</th>
-                    <th className="p-3 text-left font-semibold">Price</th>
-                    <th className="p-3 text-left font-semibold">Color</th>
-                    <th className="p-3 text-left font-semibold">Color Code</th>
+                    <th className="p-3 text-left font-semibold">Cost Price (PKR)</th>
+                    <th className="p-3 text-left font-semibold">Retail Price (PKR)</th>
+                    <th className="p-3 text-left font-semibold">Discount (%)</th>
+                    <th className="p-3 text-left font-semibold">Sale Price (PKR)</th>
                     <th className="p-3 text-left font-semibold">Category</th>
                     <th className="p-3 text-left font-semibold">Actions</th>
                   </tr>
@@ -293,20 +262,11 @@ export default function ManageProducts() {
                         className="border-b hover:bg-gray-50 transition-colors duration-200"
                       >
                         <td className="p-3">{product.name}</td>
-                        <td className="p-3">PKR {product.price.toFixed(2)}</td>
-                        <td className="p-3">{product.colorId?.colorName || 'N/A'}</td>
-                        <td className="p-3">
-                          <div className="flex items-center space-x-2">
-                            <span>{product.colorId?.code || 'N/A'}</span> 
-                            </div>
-                            {product.colorId?.code && (
-                              <div
-                                className="w-4 h-4 rounded-full"
-                                style={{ backgroundColor: product.colorId.code }}
-                              ></div>
-                            )}
-                          </td>
-                        <td className="p-3">{product.category}</td>
+                        <td className="p-3">PKR {product?.costPrice?.toFixed(2)}</td>
+                        <td className="p-3">PKR {product?.retailPrice?.toFixed(2)}</td>
+                        <td className="p-3">{product?.discountPercentage}%</td>
+                        <td className="p-3">PKR {calculateSalePrice(product?.retailPrice, product?.discountPercentage).toFixed(2)}</td>
+                        <td className="p-3">{product?.category}</td>
                         <td className="p-3 flex space-x-2">
                           <button
                             onClick={() => openEditModal(product)}
@@ -391,55 +351,45 @@ export default function ManageProducts() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Price (PKR)</label>
+                <label className="block text-sm font-medium text-gray-700">Cost Price (PKR)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  value={formData.costPrice}
+                  onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
                   className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
                   required
                   min="0"
                 />
               </div>
-              <div ref={colorDropdownRef}>
-                <label className="block text-sm font-medium text-gray-700">Color</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Retail Price (PKR)</label>
                 <input
-                  type="text"
-                  placeholder="Search colors..."
-                  value={colorSearch}
-                  onChange={(e) => {
-                    setColorSearch(e.target.value);
-                    setShowColorDropdown(true);
-                  }}
-                  onFocus={() => setShowColorDropdown(true)}
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.retailPrice}
+                  onChange={(e) => setFormData({ ...formData, retailPrice: e.target.value })}
                   className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
                   required
+                  min="0"
                 />
-                {showColorDropdown && (
-                  <div className="absolute z-10 mt-1 w-full max-w-md bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {filteredColors.length > 0 ? (
-                      filteredColors.map((color) => (
-                        <div
-                          key={color._id}
-                          onClick={() => selectColor(color)}
-                          className="flex items-center p-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          <div
-                            className="w-4 h-4 rounded-full mr-2"
-                            style={{ backgroundColor: color.code }}
-                          ></div>
-                          <span>{color.colorName} ({color.code})</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-gray-500">No colors found</div>
-                    )}
-                  </div>
-                )}
               </div>
-            
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Discount Percentage (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0"
+                  value={formData.discountPercentage}
+                  onChange={(e) => setFormData({ ...formData, discountPercentage: e.target.value })}
+                  className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+                  required
+                  min="0"
+                  max="100"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Category</label>
                 <select
@@ -465,11 +415,7 @@ export default function ManageProducts() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setColorSearch('');
-                    setShowColorDropdown(false);
-                  }}
+                  onClick={() => setIsAddModalOpen(false)}
                   className="flex-1 bg-gray-300 text-gray-700 p-3 rounded-md hover:bg-gray-400 transition-colors duration-200 font-medium"
                 >
                   Cancel
@@ -498,55 +444,45 @@ export default function ManageProducts() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Price ($)</label>
+                <label className="block text-sm font-medium text-gray-700">Cost Price (PKR)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  value={formData.costPrice}
+                  onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
                   className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
                   required
                   min="0"
                 />
               </div>
-              <div ref={colorDropdownRef}>
-                <label className="block text-sm font-medium text-gray-700">Color</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Retail Price (PKR)</label>
                 <input
-                  type="text"
-                  placeholder="Search colors..."
-                  value={colorSearch}
-                  onChange={(e) => {
-                    setColorSearch(e.target.value);
-                    setShowColorDropdown(true);
-                  }}
-                  onFocus={() => setShowColorDropdown(true)}
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.retailPrice}
+                  onChange={(e) => setFormData({ ...formData, retailPrice: e.target.value })}
                   className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
                   required
+                  min="0"
                 />
-                {showColorDropdown && (
-                  <div className="absolute z-10 mt-1 w-full max-w-md bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                    {filteredColors.length > 0 ? (
-                      filteredColors.map((color) => (
-                        <div
-                          key={color._id}
-                          onClick={() => selectColor(color)}
-                          className="flex items-center p-2 hover:bg-gray-100 cursor-pointer"
-                        >
-                          <div
-                            className="w-4 h-4 rounded-full mr-2"
-                            style={{ backgroundColor: color.code }}
-                          ></div>
-                          <span>{color.colorName} ({color.code})</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-2 text-gray-500">No colors found</div>
-                    )}
-                  </div>
-                )}
               </div>
-             
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Discount Percentage (%)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0"
+                  value={formData.discountPercentage}
+                  onChange={(e) => setFormData({ ...formData, discountPercentage: e.target.value })}
+                  className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+                  required
+                  min="0"
+                  max="100"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Category</label>
                 <select
@@ -572,11 +508,7 @@ export default function ManageProducts() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsEditModalOpen(false);
-                    setColorSearch('');
-                    setShowColorDropdown(false);
-                  }}
+                  onClick={() => setIsEditModalOpen(false)}
                   className="flex-1 bg-gray-300 text-gray-700 p-3 rounded-md hover:bg-gray-400 transition-colors duration-200 font-medium"
                 >
                   Cancel

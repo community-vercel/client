@@ -354,6 +354,9 @@ export default function EditItem() {
                           )}
                         </div>
                       )}
+
+
+                      
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Category</label>
@@ -521,6 +524,9 @@ export default function EditItem() {
             )}
           </div>
         </main>
+
+
+
       </div>
       <ToastContainer />
     </div>

@@ -38,28 +38,52 @@ export default function AddItem() {
   const router = useRouter();
   const token = localStorage.getItem('token');
 
-  // Initialize Fuse.js for product name and color search
-  const productFuse = new Fuse(uniqueProductNames, {
-    keys: ['name'],
-    threshold: 0.3,
-  });
-  const colorFuse = new Fuse(colors, {
-    keys: ['colorName', 'colorCode'],
-    threshold: 0.3,
-  });
-
   // Handle product name search
-  useEffect(() => {
-    if (productSearch) {
-      const results = productFuse.search(productSearch);
-      setFilteredProductNames(results.map((result) => result.item));
+ useEffect(() => {
+  if (productSearch && formData.category) {
+    const matchingProduct = products.find(
+      (p) => p.name === productSearch && p.category === formData.category
+    );
+    console.log('Selected product for', productSearch, formData.category, ':', matchingProduct);
+    if (matchingProduct) {
+      setFormData((prev) => ({
+        ...prev,
+        productId: matchingProduct._id,
+        discountPercentage: matchingProduct.discountPercentage.toString(),
+      }));
+      setRetailPrice(matchingProduct.retailPrice.toFixed(2));
     } else {
-      setFilteredProductNames(uniqueProductNames);
+      setFormData((prev) => ({
+        ...prev,
+        productId: '',
+        discountPercentage: '0',
+      }));
+      setRetailPrice('');
+      toast.error('No product found for this name and category', { position: 'top-right' });
     }
-  }, [productSearch, uniqueProductNames]);
-
+  } else if (productSearch) {
+    const productCategories = products
+      .filter((p) => p.name === productSearch)
+      .map((p) => p.category);
+    setAvailableCategories([...new Set(productCategories)]);
+    console.log('Available categories for', productSearch, ':', productCategories);
+  } else {
+    setAvailableCategories([]);
+    setRetailPrice('');
+    setFormData((prev) => ({
+      ...prev,
+      productId: '',
+      category: '',
+      discountPercentage: '0',
+    }));
+  }
+}, [productSearch, formData.category, products]);
   // Handle color search
   useEffect(() => {
+    const colorFuse = new Fuse(colors, {
+      keys: ['colorName', 'colorCode'],
+      threshold: 0.3,
+    });
     if (colorSearch) {
       const results = colorFuse.search(colorSearch);
       setFilteredColors(results.map((result) => result.item));
@@ -86,10 +110,8 @@ export default function AddItem() {
       });
       const fetchedProducts = res.data.products;
       setProducts(fetchedProducts);
-      // Extract unique product names with their first occurrence's ID
       const uniqueNames = [...new Set(fetchedProducts.map((p) => p.name))].map((name) => ({
         name,
-        id: fetchedProducts.find((p) => p.name === name)._id,
       }));
       setUniqueProductNames(uniqueNames);
       setFilteredProductNames(uniqueNames);
@@ -119,33 +141,44 @@ export default function AddItem() {
     }
   };
 
-  // Update available categories and retail price when product or category changes
-  useEffect(() => {
-    if (formData.productId) {
-      const selectedProduct = products.find((p) => p._id === formData.productId);
-      if (selectedProduct && formData.category) {
-        // Find the product with the selected name and category
-        const matchingProduct = products.find(
-          (p) => p.name === selectedProduct.name && p.category === formData.category
-        );
-        if (matchingProduct) {
-          setFormData((prev) => ({ ...prev, productId: matchingProduct._id })); // Update productId to match category
-          setRetailPrice(matchingProduct.retailPrice.toFixed(2));
-        } else {
-          setRetailPrice('');
-        }
-      }
-      // Update available categories based on product name
-      const productCategories = products
-        .filter((p) => p.name === selectedProduct?.name)
-        .map((p) => p.category);
-      setAvailableCategories([...new Set(productCategories)]);
+  // Update available categories, retail price, and discount percentage
+useEffect(() => {
+  if (productSearch && formData.category) {
+    const matchingProduct = products.find(
+      (p) => p.name === productSearch && p.category === formData.category
+    );
+    console.log('Selected product:', matchingProduct); // Debug log
+    if (matchingProduct) {
+      setFormData((prev) => ({
+        ...prev,
+        productId: matchingProduct._id,
+        discountPercentage: matchingProduct.discountPercentage.toString(),
+      }));
+      setRetailPrice(matchingProduct.retailPrice.toFixed(2));
     } else {
-      setAvailableCategories([]);
+      setFormData((prev) => ({
+        ...prev,
+        productId: '',
+        discountPercentage: '0',
+      }));
       setRetailPrice('');
     }
-  }, [formData.productId, formData.category, products]);
-
+  } else if (productSearch) {
+    const productCategories = products
+      .filter((p) => p.name === productSearch)
+      .map((p) => p.category);
+    setAvailableCategories([...new Set(productCategories)]);
+  } else {
+    setAvailableCategories([]);
+    setRetailPrice('');
+    setFormData((prev) => ({
+      ...prev,
+     productId: '',
+      category: '',
+      discountPercentage: '0',
+    }));
+  }
+}, [productSearch, formData.category, products]);
   // Handle clicks outside dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -163,10 +196,12 @@ export default function AddItem() {
   const handleProductChange = (productNameObj) => {
     setFormData({
       ...formData,
-      productId: productNameObj.id,
-      category: '', // Reset category
+      productId: '',
+      category: '',
+      discountPercentage: '0',
     });
     setProductSearch(productNameObj.name);
+    setRetailPrice('');
     setShowProductDropdown(false);
   };
 
@@ -186,64 +221,83 @@ export default function AddItem() {
     if (isNaN(price) || isNaN(discount)) return '';
     return (price - (price * discount) / 100).toFixed(2);
   };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const { productId, quantity, barcode, shelf, minStock, maxStock, color, colorCode, category, discountPercentage } = formData;
-    if (quantity < 0 || minStock < 0 || maxStock < 0) {
-      toast.error('Quantity, min stock, and max stock cannot be negative', {
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  const { productId, quantity, barcode, shelf, minStock, maxStock, color, colorCode, category, discountPercentage } = formData;
+  if (quantity < 0 || minStock < 0 || maxStock < 0) {
+    toast.error('Quantity, min stock, and max stock cannot be negative', {
+      position: 'top-right',
+    });
+    return;
+  }
+  if (minStock > maxStock) {
+    toast.error('Min stock cannot be greater than max stock', {
+      position: 'top-right',
+    });
+    return;
+  }
+  if (!productId || !category) {
+    toast.error('Please select a product and category', { position: 'top-right' });
+    return;
+  }
+  if (!color || !colorCode) {
+    toast.error('Please select a color', { position: 'top-right' });
+    return;
+  }
+  if (discountPercentage < 0 || discountPercentage > 100) {
+    toast.error('Discount percentage must be between 0 and 100', { position: 'top-right' });
+    return;
+  }
+  setIsLoading(true);
+  try {
+    console.log('Checking item existence:', { productId, category });
+    const checkResponse = await axios.get(
+      `${process.env.NEXT_PUBLIC_API_URL}/items/check`,
+      {
+        params: { productId, category },
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    console.log('Check response:', checkResponse.data);
+    if (checkResponse.data.exists) {
+      toast.error('An item with this product and category already exists', {
         position: 'top-right',
       });
-      return;
-    }
-    if (minStock > maxStock) {
-      toast.error('Min stock cannot be greater than max stock', {
-        position: 'top-right',
-      });
-      return;
-    }
-    if (!productId || !category) {
-      toast.error('Please select a product and category', { position: 'top-right' });
-      return;
-    }
-    if (!color || !colorCode) {
-      toast.error('Please select a color', { position: 'top-right' });
-      return;
-    }
-    if (discountPercentage < 0 || discountPercentage > 100) {
-      toast.error('Discount percentage must be between 0 and 100', { position: 'top-right' });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/items`,
-        {
-          productId,
-          quantity: Number(quantity),
-          barcode,
-          shelf,
-          minStock: Number(minStock),
-          maxStock: Number(maxStock),
-          color,
-          colorCode,
-          category,
-          discountPercentage: Number(discountPercentage),
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      toast.success('Item added successfully!', { position: 'top-right' });
-      router.push('/products');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add item', {
-        position: 'top-right',
-      });
-    } finally {
       setIsLoading(false);
+      return;
     }
-  };
+
+    const payload = {
+      productId,
+      quantity: Number(quantity),
+      barcode: barcode || null,
+      shelf: shelf || null,
+      minStock: Number(minStock),
+      maxStock: Number(maxStock),
+      color,
+      colorCode,
+      category,
+      discountPercentage: Number(discountPercentage),
+    };
+    console.log('Submitting item:', payload);
+    await axios.post(
+      `${process.env.NEXT_PUBLIC_API_URL}/items`,
+      payload,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    toast.success('Item added successfully!', { position: 'top-right' });
+    router.push('/products');
+  } catch (error) {
+    console.error('Error in handleSubmit:', error.response?.data, error.stack);
+    toast.error(error.response?.data?.message || 'Failed to add item', {
+      position: 'top-right',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -314,7 +368,7 @@ export default function AddItem() {
                           {filteredProductNames.length > 0 ? (
                             filteredProductNames.map((productNameObj) => (
                               <div
-                                key={productNameObj.id}
+                                key={productNameObj.name}
                                 onClick={() => handleProductChange(productNameObj)}
                                 className="p-2 hover:bg-gray-100 cursor-pointer"
                               >
@@ -329,19 +383,35 @@ export default function AddItem() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Category</label>
-                      <select
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                        required
-                      >
-                        <option value="">Select a category</option>
-                        {availableCategories.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                          </option>
-                        ))}
-                      </select>
+    <select
+  value={formData.category}
+  onChange={(e) => {
+    const category = e.target.value;
+    const selectedProduct = products.find(
+      (p) => p.name === productSearch && p.category === category
+    );
+    console.log('Category changed to', category, 'Selected product:', selectedProduct);
+    setFormData({
+      ...formData,
+      category,
+      productId: selectedProduct ? selectedProduct._id : '',
+      discountPercentage: selectedProduct ? selectedProduct.discountPercentage.toString() : '0',
+    });
+    if (!selectedProduct) {
+      setRetailPrice('');
+      toast.error('No product found for this name and category', { position: 'top-right' });
+    }
+  }}
+  className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+  required
+>
+  <option value="">Select a category</option>
+  {availableCategories.map((cat) => (
+    <option key={cat} value={cat}>
+      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+    </option>
+  ))}
+</select>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -370,7 +440,7 @@ export default function AddItem() {
                               >
                                 <div
                                   className="w-4 h-4 rounded-full mr-2"
-                                  style={{ backgroundColor: color.code }}
+                                  style={{ backgroundColor: color.colorCode }}
                                 ></div>
                                 <span>{color.colorName} ({color.colorCode})</span>
                               </div>
@@ -401,11 +471,8 @@ export default function AddItem() {
                         step="0.01"
                         placeholder="0"
                         value={formData.discountPercentage}
-                        onChange={(e) => setFormData({ ...formData, discountPercentage: e.target.value })}
-                        className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                        required
-                        min="0"
-                        max="100"
+                        disabled
+                        className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
                       />
                     </div>
                     <div>
@@ -473,9 +540,9 @@ export default function AddItem() {
                   <div className="flex space-x-2">
                     <button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || !formData.productId || !formData.category}
                       className={`flex-1 bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium ${
-                        isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                        isLoading || !formData.productId || !formData.category ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
                       {isLoading ? 'Adding...' : 'Add Item'}

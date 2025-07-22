@@ -39,60 +39,33 @@ export default function EditItem() {
   const { id } = useParams();
   const token = localStorage.getItem('token');
 
-  const categories = ['gallon', 'quarter', 'drums', 'liters'];
-
-  // Initialize Fuse.js for product name and color search
-  const productFuse = new Fuse(uniqueProductNames, {
-    keys: ['name'],
-    threshold: 0.3,
-  });
-  const colorFuse = new Fuse(colors, {
-    keys: ['colorName', 'colorCode'],
-    threshold: 0.3,
-  });
-
-  // Handle product name search
-  useEffect(() => {
-    if (productSearch) {
-      const results = productFuse.search(productSearch);
-      setFilteredProductNames(results.map((result) => result.item));
-    } else {
-      setFilteredProductNames(uniqueProductNames);
-    }
-  }, [productSearch, uniqueProductNames]);
-
-  // Handle color search
-  useEffect(() => {
-    if (colorSearch) {
-      const results = colorFuse.search(colorSearch);
-      setFilteredColors(results.map((result) => result.item));
-    } else {
-      setFilteredColors(colors);
-    }
-  }, [colorSearch, colors]);
-
-  // Fetch products, colors, and item
+  // Fetch products and colors
   useEffect(() => {
     if (!token) {
       router.push('/auth/signin');
     } else {
       fetchProducts();
       fetchColors();
+    }
+  }, [token, router]);
+
+  // Fetch item after products are loaded
+  useEffect(() => {
+    if (products.length > 0 && token) {
       fetchItem();
     }
-  }, [token, router, id]);
+  }, [products, token, id]);
 
   const fetchProducts = async () => {
+    setIsLoading(true);
     try {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const fetchedProducts = res.data.products;
       setProducts(fetchedProducts);
-      // Extract unique product names with their first occurrence's ID
       const uniqueNames = [...new Set(fetchedProducts.map((p) => p.name))].map((name) => ({
         name,
-        id: fetchedProducts.find((p) => p.name === name)._id,
       }));
       setUniqueProductNames(uniqueNames);
       setFilteredProductNames(uniqueNames);
@@ -100,10 +73,13 @@ export default function EditItem() {
       toast.error(error.response?.data?.message || 'Failed to fetch products', {
         position: 'top-right',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const fetchColors = async () => {
+    setIsLoading(true);
     try {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/colors`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -114,6 +90,8 @@ export default function EditItem() {
       toast.error(error.response?.data?.message || 'Failed to fetch colors', {
         position: 'top-right',
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -138,6 +116,13 @@ export default function EditItem() {
       setProductSearch(res.data.productId.name);
       setColorSearch(res.data.color || '');
       setRetailPrice(res.data.productId.retailPrice?.toFixed(2) || '');
+      // Set available categories based on the product's name
+      const productCategories = products
+        .filter((p) => p.name === res.data.productId.name)
+        .map((p) => p.category);
+      setAvailableCategories([...new Set(productCategories)]);
+      console.log('Available categories for', res.data.productId.name, ':', productCategories);
+      console.log('Pre-selected category:', res.data.category);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch item', {
         position: 'top-right',
@@ -147,32 +132,74 @@ export default function EditItem() {
     }
   };
 
-  // Update available categories and retail price when product or category changes
+  // Initialize Fuse.js for product name search
   useEffect(() => {
-    if (formData.productId) {
-      const selectedProduct = products.find((p) => p._id === formData.productId);
-      if (selectedProduct && formData.category) {
-        // Find the product with the selected name and category
-        const matchingProduct = products.find(
-          (p) => p.name === selectedProduct.name && p.category === formData.category
-        );
-        if (matchingProduct) {
-          setFormData((prev) => ({ ...prev, productId: matchingProduct._id })); // Update productId to match category
-          setRetailPrice(matchingProduct.retailPrice.toFixed(2));
-        } else {
-          setRetailPrice('');
-        }
+    const productFuse = new Fuse(uniqueProductNames, {
+      keys: ['name'],
+      threshold: 0.3,
+    });
+    if (productSearch) {
+      const results = productFuse.search(productSearch);
+      setFilteredProductNames(results.map((result) => result.item));
+    } else {
+      setFilteredProductNames(uniqueProductNames);
+    }
+  }, [productSearch, uniqueProductNames]);
+
+  // Handle color search
+  useEffect(() => {
+    const colorFuse = new Fuse(colors, {
+      keys: ['colorName', 'colorCode'],
+      threshold: 0.3,
+    });
+    if (colorSearch) {
+      const results = colorFuse.search(colorSearch);
+      setFilteredColors(results.map((result) => result.item));
+    } else {
+      setFilteredColors(colors);
+    }
+  }, [colorSearch, colors]);
+
+  // Update available categories, retail price, and discount percentage
+  useEffect(() => {
+    if (productSearch && formData.category) {
+      const matchingProduct = products.find(
+        (p) => p.name === productSearch && p.category === formData.category
+      );
+      console.log('Selected product for', productSearch, formData.category, ':', matchingProduct);
+      if (matchingProduct) {
+        setFormData((prev) => ({
+          ...prev,
+          productId: matchingProduct._id,
+          discountPercentage: matchingProduct.discountPercentage.toString(),
+        }));
+        setRetailPrice(matchingProduct.retailPrice.toFixed(2));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          productId: '',
+          discountPercentage: '0',
+        }));
+        setRetailPrice('');
+        toast.error('No product found for this name and category', { position: 'top-right' });
       }
-      // Update available categories based on product name
+    } else if (productSearch) {
       const productCategories = products
-        .filter((p) => p.name === selectedProduct?.name)
+        .filter((p) => p.name === productSearch)
         .map((p) => p.category);
       setAvailableCategories([...new Set(productCategories)]);
+      console.log('Available categories for', productSearch, ':', productCategories);
     } else {
       setAvailableCategories([]);
       setRetailPrice('');
+      setFormData((prev) => ({
+        ...prev,
+        productId: '',
+        category: '',
+        discountPercentage: '0',
+      }));
     }
-  }, [formData.productId, formData.category, products]);
+  }, [productSearch, formData.category, products]);
 
   // Handle clicks outside dropdowns
   useEffect(() => {
@@ -191,10 +218,12 @@ export default function EditItem() {
   const handleProductChange = (productNameObj) => {
     setFormData({
       ...formData,
-      productId: productNameObj.id,
-      category: '', // Reset category
+      productId: '',
+      category: '',
+      discountPercentage: '0',
     });
     setProductSearch(productNameObj.name);
+    setRetailPrice('');
     setShowProductDropdown(false);
   };
 
@@ -244,20 +273,40 @@ export default function EditItem() {
     }
     setIsLoading(true);
     try {
+      // Check if another item with the same productId and category exists, excluding the current item
+      console.log('Checking item existence:', { productId, category });
+      const checkResponse = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/items/check`,
+        {
+          params: { productId, category, excludeId: id },
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      console.log('Check response:', checkResponse.data);
+      if (checkResponse.data.exists) {
+        toast.error('An item with this product and category already exists', {
+          position: 'top-right',
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const payload = {
+        productId,
+        quantity: Number(quantity),
+        barcode: barcode || null,
+        shelf: shelf || null,
+        minStock: Number(minStock),
+        maxStock: Number(maxStock),
+        color,
+        colorCode,
+        category,
+        discountPercentage: Number(discountPercentage),
+      };
+      console.log('Updating item:', payload);
       await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/items/${id}`,
-        {
-          productId,
-          quantity: Number(quantity),
-          barcode,
-          shelf,
-          minStock: Number(minStock),
-          maxStock: Number(maxStock),
-          color,
-          colorCode,
-          category,
-          discountPercentage: Number(discountPercentage),
-        },
+        payload,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -265,6 +314,7 @@ export default function EditItem() {
       toast.success('Item updated successfully!', { position: 'top-right' });
       router.push('/products');
     } catch (error) {
+      console.error('Error in handleSubmit:', error.response?.data, error.stack);
       toast.error(error.response?.data?.message || 'Failed to update item', {
         position: 'top-right',
       });
@@ -342,7 +392,7 @@ export default function EditItem() {
                           {filteredProductNames.length > 0 ? (
                             filteredProductNames.map((productNameObj) => (
                               <div
-                                key={productNameObj.id}
+                                key={productNameObj.name}
                                 onClick={() => handleProductChange(productNameObj)}
                                 className="p-2 hover:bg-gray-100 cursor-pointer"
                               >
@@ -354,15 +404,28 @@ export default function EditItem() {
                           )}
                         </div>
                       )}
-
-
-                      
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Category</label>
                       <select
                         value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                        onChange={(e) => {
+                          const category = e.target.value;
+                          const selectedProduct = products.find(
+                            (p) => p.name === productSearch && p.category === category
+                          );
+                          console.log('Category changed to', category, 'Selected product:', selectedProduct);
+                          setFormData({
+                            ...formData,
+                            category,
+                            productId: selectedProduct ? selectedProduct._id : '',
+                            discountPercentage: selectedProduct ? selectedProduct.discountPercentage.toString() : '0',
+                          });
+                          if (!selectedProduct) {
+                            setRetailPrice('');
+                            toast.error('No product found for this name and category', { position: 'top-right' });
+                          }
+                        }}
                         className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
                         required
                       >
@@ -401,7 +464,7 @@ export default function EditItem() {
                               >
                                 <div
                                   className="w-4 h-4 rounded-full mr-2"
-                                  style={{ backgroundColor: color.code }}
+                                  style={{ backgroundColor: color.colorCode }}
                                 ></div>
                                 <span>{color.colorName} ({color.colorCode})</span>
                               </div>
@@ -432,11 +495,8 @@ export default function EditItem() {
                         step="0.01"
                         placeholder="0"
                         value={formData.discountPercentage}
-                        onChange={(e) => setFormData({ ...formData, discountPercentage: e.target.value })}
-                        className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                        required
-                        min="0"
-                        max="100"
+                        disabled
+                        className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
                       />
                     </div>
                     <div>
@@ -504,12 +564,12 @@ export default function EditItem() {
                   <div className="flex space-x-2">
                     <button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || !formData.productId || !formData.category}
                       className={`flex-1 bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium ${
-                        isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                        isLoading || !formData.productId || !formData.category ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
-                      {isLoading ? 'Updating...' : 'Update Item'}
+                      {isLoading ? ' Updating...' : 'Update Item'}
                     </button>
                     <button
                       type="button"
@@ -524,9 +584,6 @@ export default function EditItem() {
             )}
           </div>
         </main>
-
-
-
       </div>
       <ToastContainer />
     </div>

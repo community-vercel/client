@@ -44,9 +44,7 @@ export default function ManageProducts() {
         params: { search, page, limit },
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Group products by name
-      const groupedProducts = groupProductsByName(res.data.products);
-      setProducts(groupedProducts);
+      setProducts(res.data.products);
       setTotalPages(Math.ceil(res.data.total / limit));
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch products', {
@@ -57,40 +55,11 @@ export default function ManageProducts() {
     }
   };
 
-  // Function to group products by name
-  const groupProductsByName = (products) => {
-    const grouped = products.reduce((acc, product) => {
-      const existing = acc.find((p) => p.name === product.name);
-      if (existing) {
-        existing.categories.add(product.category);
-        // Update costPrice, retailPrice, discountPercentage if needed (e.g., take the latest or average)
-        existing.costPrice = product.costPrice; // Example: Use the latest
-        existing.retailPrice = product.retailPrice;
-        existing.discountPercentage = product.discountPercentage;
-        existing.ids.push(product._id); // Store all IDs for deletion/editing
-      } else {
-        acc.push({
-          name: product.name,
-          costPrice: product.costPrice,
-          retailPrice: product.retailPrice,
-          discountPercentage: product.discountPercentage,
-          categories: new Set([product.category]),
-          ids: [product._id],
-        });
-      }
-      return acc;
-    }, []);
-    // Convert categories Set to array for rendering
-    return grouped.map((product) => ({
-      ...product,
-      categories: Array.from(product.categories),
-    }));
-  };
-
   const handleAddProduct = async (e) => {
     e.preventDefault();
     const { name, costPrice, retailPrice, discountPercentage, category } = formData;
 
+    // Validate inputs
     if (costPrice < 0 || retailPrice < 0) {
       toast.error('Prices cannot be negative', { position: 'top-right' });
       return;
@@ -127,6 +96,7 @@ export default function ManageProducts() {
     e.preventDefault();
     const { name, costPrice, retailPrice, discountPercentage, category } = formData;
 
+    // Validate inputs
     if (costPrice < 0 || retailPrice < 0) {
       toast.error('Prices cannot be negative', { position: 'top-right' });
       return;
@@ -138,7 +108,7 @@ export default function ManageProducts() {
 
     try {
       await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/product/${editProduct.ids[0]}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/product/${editProduct._id}`,
         {
           name,
           costPrice: Number(costPrice),
@@ -159,18 +129,13 @@ export default function ManageProducts() {
     }
   };
 
-  const handleDelete = async (ids) => {
+  const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this product?')) {
       try {
-        // Delete all instances of the product with the same name
-        await Promise.all(
-          ids.map((id) =>
-            axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/product/${id}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            })
-          )
-        );
-        toast.success('Product(s) deleted successfully!', { position: 'top-right' });
+        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/product/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        toast.success('Product deleted successfully!', { position: 'top-right' });
         fetchProducts();
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to delete product', {
@@ -187,7 +152,7 @@ export default function ManageProducts() {
       costPrice: product.costPrice.toString(),
       retailPrice: product.retailPrice.toString(),
       discountPercentage: product.discountPercentage.toString(),
-      category: product.categories[0] || '', // Default to first category
+      category: product.category,
     });
     setIsEditModalOpen(true);
   };
@@ -203,6 +168,7 @@ export default function ManageProducts() {
     router.push('/auth/signin');
   };
 
+  // Calculate sale price
   const calculateSalePrice = (retailPrice, discountPercentage) => {
     return retailPrice - (retailPrice * discountPercentage) / 100;
   };
@@ -278,7 +244,7 @@ export default function ManageProducts() {
                     <th className="p-3 text-left font-semibold">Retail Price (PKR)</th>
                     <th className="p-3 text-left font-semibold">Discount (%)</th>
                     <th className="p-3 text-left font-semibold">Sale Price (PKR)</th>
-                    <th className="p-3 text-left font-semibold">Categories</th>
+                    <th className="p-3 text-left font-semibold">Category</th>
                     <th className="p-3 text-left font-semibold">Actions</th>
                   </tr>
                 </thead>
@@ -292,17 +258,15 @@ export default function ManageProducts() {
                   ) : products?.length > 0 ? (
                     products.map((product) => (
                       <tr
-                        key={product.name} // Use name as key since it's unique now
+                        key={product._id}
                         className="border-b hover:bg-gray-50 transition-colors duration-200"
                       >
                         <td className="p-3">{product.name}</td>
-                        <td className="p-3">PKR {product.costPrice.toFixed(2)}</td>
-                        <td className="p-3">PKR {product.retailPrice.toFixed(2)}</td>
-                        <td className="p-3">{product.discountPercentage}%</td>
-                        <td className="p-3">
-                          PKR {calculateSalePrice(product.retailPrice, product.discountPercentage).toFixed(2)}
-                        </td>
-                        <td className="p-3">{product.categories.join(', ')}</td>
+                        <td className="p-3">PKR {product?.costPrice.toFixed(2)}</td>
+                        <td className="p-3">PKR {product?.retailPrice.toFixed(2)}</td>
+                        <td className="p-3">{product?.discountPercentage}%</td>
+                        <td className="p-3">PKR {calculateSalePrice(product?.retailPrice, product?.discountPercentage).toFixed(2)}</td>
+                        <td className="p-3">{product?.category}</td>
                         <td className="p-3 flex space-x-2">
                           <button
                             onClick={() => openEditModal(product)}
@@ -311,7 +275,7 @@ export default function ManageProducts() {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(product.ids)}
+                            onClick={() => handleDelete(product._id)}
                             className="text-red-600 hover:text-red-800 transition-colors duration-200 font-medium"
                           >
                             Delete
@@ -445,7 +409,7 @@ export default function ManageProducts() {
               <div className="flex space-x-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-blueI-600 text-white p-3 rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium"
+                  className="flex-1 bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium"
                 >
                   Add Product
                 </button>

@@ -7,6 +7,7 @@ import api from '../../lib/api';
 import Link from 'next/link';
 import { formatCurrency } from '../utils/helpers';
 import TransactionModal from '../../components/TransactionModal';
+import Chart from '../../components/Chart';
 
 // Animation variants
 const containerVariants = {
@@ -27,6 +28,7 @@ const errorVariants = {
 const REPORT_FORMATS = [
   { value: 'pdf', label: 'PDF' },
   { value: 'excel', label: 'Excel' },
+  { value: 'json', label: 'Summary' }, // Added JSON format for inline summary
 ];
 
 export default function Customers() {
@@ -41,6 +43,8 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [userId, setUserId] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [customerSummaries, setCustomerSummaries] = useState({}); // New state for summaries
+  const [expandedCustomer, setExpandedCustomer] = useState(null); // Track expanded customer for summary
 
   // Initialize userId
   useEffect(() => {
@@ -96,6 +100,11 @@ export default function Customers() {
         updated.delete(customerId);
         return updated;
       });
+      setCustomerSummaries((prev) => {
+        const updated = { ...prev };
+        delete updated[customerId];
+        return updated;
+      });
     } catch (err) {
       setError(
         err.response?.data?.message || 'Failed to delete customer. Ensure no transactions are associated.'
@@ -111,6 +120,11 @@ export default function Customers() {
       await Promise.all([...selectedCustomers].map((id) => api.delete(`/customers/${id}`)));
       setRefreshTrigger((prev) => prev + 1);
       setSelectedCustomers(new Set());
+      setCustomerSummaries((prev) => {
+        const updated = { ...prev };
+        [...selectedCustomers].forEach((id) => delete updated[id]);
+        return updated;
+      });
     } catch (err) {
       setError(
         err.response?.data?.message || 'Failed to delete selected customers. Some may have associated transactions.'
@@ -122,9 +136,20 @@ export default function Customers() {
 
   // Handle report generation
   const handleGenerateReport = async (customerId) => {
+    setError('');
     try {
       const { data } = await api.get(`/reports/summary?customerId=${customerId}&format=${reportFormat}`);
-      window.open(data.url, '_blank');
+      if (reportFormat === 'json') {
+        // Store summary data for inline display
+        setCustomerSummaries((prev) => ({
+          ...prev,
+          [customerId]: data,
+        }));
+        setExpandedCustomer(customerId); // Expand the customer's summary
+      } else {
+        // Download PDF or Excel
+        window.open(data.url, '_blank');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to generate report.');
     }
@@ -137,6 +162,11 @@ export default function Customers() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setRefreshTrigger((prev) => prev + 1); // Refresh customers to update balances
+      setCustomerSummaries((prev) => {
+        const updated = { ...prev };
+        delete updated[form.customerId]; // Clear summary to force refresh
+        return updated;
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Error submitting transaction.');
       throw err;
@@ -164,6 +194,23 @@ export default function Customers() {
   const openTransactionModal = (customer) => {
     setSelectedCustomer({ customerId: customer._id, customerName: customer.name });
     setIsModalOpen(true);
+  };
+
+  // Chart options for category summary
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { color: '#e5e7eb' } },
+      tooltip: {
+        backgroundColor: '#1f2937',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        callbacks: {
+          label: (context) => `${context.label}: ${formatCurrency(context.raw)}`,
+        },
+      },
+    },
   };
 
   return (
@@ -338,59 +385,113 @@ export default function Customers() {
             {customers.length === 0 ? (
               <p className="text-center text-gray-300">No customers found.</p>
             ) : (
-              customers.map((customer) => (
-                <motion.div
-                  key={customer._id}
-                  variants={itemVariants}
-                  className="p-4 bg-gray-800 bg-opacity-60 backdrop-blur-lg rounded-xl shadow-xl flex flex-col md:flex-row md:items-center md:justify-between gap-4 hover:bg-opacity-70 transition"
-                >
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedCustomers.has(customer._id)}
-                      onChange={() => toggleCustomerSelection(customer._id)}
-                      className="text-indigo-400 focus:ring-indigo-400"
-                      aria-label={`Select ${customer.name}`}
-                    />
-                    <div>
-                      <Link href={`/transactions?customerId=${customer._id}`}>
-                        <span className="text-indigo-400 hover:underline font-medium">{customer.name}</span>
-                      </Link>
-                      <p className="text-gray-300 text-sm">Phone: {customer.phone || 'N/A'}</p>
-                      <p className="text-gray-300 text-sm">Address: {customer.address || 'N/A'}</p>
-                      <p className="text-gray-300 text-sm">
-                        Balance:{' '}
-                        <span className={customer.balance >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          {formatCurrency((customer.balance || 0).toFixed(2))}
-                        </span>
-                      </p>
+              customers.map((customer) => {
+                const summary = customerSummaries[customer._id];
+                const chartData = summary && {
+                  labels: Object.keys(summary.categorySummary || {}),
+                  datasets: [
+                    {
+                      label: 'Category Summary',
+                      data: Object.values(summary.categorySummary || {}),
+                      backgroundColor: ['#4f46e5', '#ef4444', '#10b981', '#f59e0b', '#6b7280'],
+                      hoverBackgroundColor: ['#4338ca', '#dc2626', '#059669', '#d97706', '#4b5563'],
+                      borderWidth: 2,
+                      borderColor: '#ffffff',
+                    },
+                  ],
+                };
+
+                return (
+                  <motion.div
+                    key={customer._id}
+                    variants={itemVariants}
+                    className="p-0 bg-gray-800 bg-opacity-60 backdrop-blur-lg rounded-xl shadow-xl space-y-4 hover:bg-opacity-70 transition"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                      <div className="flex items-center space-x-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedCustomers.has(customer._id)}
+                          onChange={() => toggleCustomerSelection(customer._id)}
+                          className="text-indigo-400 focus:ring-indigo-400"
+                          aria-label={`Select ${customer.name}`}
+                        />
+                        <div>
+                          <Link href={`/transactions?customerId=${customer._id}`}>
+                            <span className="text-indigo-400 hover:underline font-medium">{customer.name}</span>
+                          </Link>
+                          <p className="text-gray-300 text-sm">Phone: {customer.phone || 'N/A'}</p>
+                          <p className="text-gray-300 text-sm">Address: {customer.address || 'N/A'}</p>
+                          <p className="text-gray-300 text-sm">
+                            Balance:{' '}
+                            <span className={customer.balance >= 0 ? 'text-green-400' : 'text-red-400'}>
+                              {formatCurrency((customer.balance || 0).toFixed(2))}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => openTransactionModal(customer)}
+                          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
+                          aria-label={`Add Transaction for ${customer.name}`}
+                        >
+                          Add Transaction
+                        </button>
+                        <button
+                          onClick={() => handleGenerateReport(customer._id)}
+                          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
+                          aria-label={`Generate Report for ${customer.name}`}
+                        >
+                          {reportFormat === 'json' ? 'View Summary' : 'Generate Report'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCustomer(customer._id)}
+                          className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+                          aria-label={`Delete ${customer.name}`}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => openTransactionModal(customer)}
-                      className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
-                      aria-label={`Add Transaction for ${customer.name}`}
-                    >
-                      Add Transaction
-                    </button>
-                    <button
-                      onClick={() => handleGenerateReport(customer._id)}
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-                      aria-label={`Generate Report for ${customer.name}`}
-                    >
-                      Generate Report
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCustomer(customer._id)}
-                      className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
-                      aria-label={`Delete ${customer.name}`}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </motion.div>
-              ))
+                    {/* Customer Summary Section */}
+                    <AnimatePresence>
+                      {summary && expandedCustomer === customer._id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="bg-gray-700 bg-opacity-50 p-4 rounded-lg mt-4"
+                        >
+                          <h3 className="text-lg font-semibold text-white mb-4">Financial Summary</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                            {[
+                              { title: 'Opening Balance', value: summary.openingBalance || 0 },
+                              { title: 'Total Receivables', value: summary.totalReceivables || 0 },
+                              { title: 'Total Payables', value: summary.totalPayables || 0 },
+                              { title: 'Balance', value: summary.balance || 0 },
+                            ].map((metric, index) => (
+                              <div key={index} className="text-center">
+                                <p className="text-sm font-semibold text-gray-300 uppercase">{metric.title}</p>
+                                <p className="text-xl font-bold text-indigo-400">{formatCurrency(metric.value)}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {chartData && (
+                            <div className="mt-4">
+                              <h4 className="text-sm font-semibold text-white mb-2">Category Summary</h4>
+                              <div className="relative h-96">
+                                <Chart type="pie" data={chartData} options={chartOptions} />
+                              </div>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                );
+              })
             )}
           </motion.div>
         )}

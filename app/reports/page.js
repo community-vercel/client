@@ -9,10 +9,11 @@ import { formatCurrency } from '../utils/helpers';
 
 export default function Reports() {
   const [report, setReport] = useState(null);
-  const [filters, setFilters] = useState({ startDate: '', endDate: '', format: 'json',role:'admin' });
+  const [filters, setFilters] = useState({ startDate: '', endDate: '', format: 'json', role: 'admin',category: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-const today = new Date().toISOString().split('T')[0]; 
+  const today = new Date().toISOString().split('T')[0];
+
   const fetchReport = async () => {
     setLoading(true);
     setError('');
@@ -26,7 +27,6 @@ const today = new Date().toISOString().split('T')[0];
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
- 
       } else {
         setReport(res.data);
       }
@@ -38,7 +38,6 @@ const today = new Date().toISOString().split('T')[0];
     }
   };
 
-  
   const chartData = report && {
     labels: Object.keys(report.categorySummary || {}),
     datasets: [
@@ -57,7 +56,14 @@ const today = new Date().toISOString().split('T')[0];
     responsive: true,
     plugins: {
       legend: { position: 'top', labels: { color: '#e5e7eb' } },
-      tooltip: { backgroundColor: '#1f2937', titleColor: '#ffffff', bodyColor: '#ffffff' },
+      tooltip: {
+        backgroundColor: '#1f2937',
+        titleColor: '#ffffff',
+        bodyColor: '#ffffff',
+        callbacks: {
+          label: (context) => `${context.label}: ${formatCurrency(context.raw)}`,
+        },
+      },
     },
   };
 
@@ -94,8 +100,7 @@ const today = new Date().toISOString().split('T')[0];
               onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               aria-label="Start Date"
-                max={today}
-
+              max={today}
             />
             <input
               type="date"
@@ -103,8 +108,7 @@ const today = new Date().toISOString().split('T')[0];
               onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
               className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               aria-label="End Date"
-                max={today}
-
+              max={today}
             />
             <select
               value={filters.format}
@@ -185,10 +189,11 @@ const today = new Date().toISOString().split('T')[0];
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {[
-                  { title: 'Total Credits', value: report.totalReceipts || 0 },
-                  { title: 'Total Debits', value: report.totalPayments || 0 },
+                  { title: 'Opening Balance', value: report.openingBalance || 0 },
+                  { title: 'Total Receivables', value: report.totalReceivables || 0 },
+                  { title: 'Total Payables', value: report.totalPayables || 0 },
                   { title: 'Balance', value: report.balance || 0 },
                 ].map((metric, index) => (
                   <motion.div
@@ -224,11 +229,14 @@ const today = new Date().toISOString().split('T')[0];
                 className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
               >
                 <h3 className="text-lg font-semibold text-white mb-4">Transactions</h3>
-                <TransactionTable
-                  transactions={report.transactions || []}
-                  onEdit={() => console.log('Edit disabled in reports')}
-                  onDelete={() => console.log('Delete disabled in reports')}
-                />
+                  <TransactionTable
+                              filters={filters}
+                              onEdit={()=> setIsEditModalOpen(true)}
+                              onDelete={(id) => {
+                                // Handle delete action
+    }}
+                              refresh={() => fetchReport()}
+                            />
               </motion.div>
             </motion.div>
           )}

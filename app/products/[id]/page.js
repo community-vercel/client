@@ -161,46 +161,45 @@ export default function EditItem() {
   }, [colorSearch, colors]);
 
   // Update available categories, retail price, and discount percentage
-  useEffect(() => {
-    if (productSearch && formData.category) {
-      const matchingProduct = products.find(
-        (p) => p.name === productSearch && p.category === formData.category
-      );
-      console.log('Selected product for', productSearch, formData.category, ':', matchingProduct);
-      if (matchingProduct) {
-        setFormData((prev) => ({
-          ...prev,
-          productId: matchingProduct._id,
-          discountPercentage: matchingProduct.discountPercentage.toString(),
-        }));
-        setRetailPrice(matchingProduct.retailPrice.toFixed(2));
-      } else {
-        setFormData((prev) => ({
-          ...prev,
-          productId: '',
-          discountPercentage: '0',
-        }));
-        setRetailPrice('');
-        toast.error('No product found for this name and category', { position: 'top-right' });
-      }
-    } else if (productSearch) {
-      const productCategories = products
-        .filter((p) => p.name === productSearch)
-        .map((p) => p.category);
-      setAvailableCategories([...new Set(productCategories)]);
-      console.log('Available categories for', productSearch, ':', productCategories);
+useEffect(() => {
+  if (productSearch && formData.category) {
+    const matchingProduct = products.find(
+      (p) => p.name === productSearch && p.category === formData.category
+    );
+    console.log('Selected product for', productSearch, formData.category, ':', matchingProduct);
+    if (matchingProduct) {
+      setFormData((prev) => ({
+        ...prev,
+        productId: matchingProduct._id,
+        discountPercentage: matchingProduct.discountPercentage.toString(),
+      }));
+      setRetailPrice(matchingProduct.retailPrice.toFixed(2));
     } else {
-      setAvailableCategories([]);
-      setRetailPrice('');
       setFormData((prev) => ({
         ...prev,
         productId: '',
-        category: '',
         discountPercentage: '0',
       }));
+      setRetailPrice('');
+      toast.error('No product found for this name and category', { position: 'top-right' });
     }
-  }, [productSearch, formData.category, products]);
-
+  } else if (productSearch) {
+    const productCategories = products
+      .filter((p) => p.name === productSearch)
+      .map((p) => p.category);
+    setAvailableCategories([...new Set(productCategories)]);
+    console.log('Available categories for', productSearch, ':', productCategories);
+  } else {
+    setAvailableCategories([]);
+    setRetailPrice('');
+    setFormData((prev) => ({
+      ...prev,
+      productId: '',
+      category: '',
+      discountPercentage: '0',
+    }));
+  }
+}, [productSearch, formData.category, products]);
   // Handle clicks outside dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -275,21 +274,20 @@ export default function EditItem() {
     try {
       // Check if another item with the same productId and category exists, excluding the current item
       console.log('Checking item existence:', { productId, category });
-      const checkResponse = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/items/check`,
-        {
-          params: { productId, category, excludeId: id },
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      console.log('Check response:', checkResponse.data);
-      if (checkResponse.data.exists) {
-        toast.error('An item with this product and category already exists', {
-          position: 'top-right',
-        });
-        setIsLoading(false);
-        return;
-      }
+   const checkResponse = await axios.get(
+  `${process.env.NEXT_PUBLIC_API_URL}/items/check`,
+  {
+    params: { productId, category, excludeId: id },
+    headers: { Authorization: `Bearer ${token}` },
+  }
+);
+if (checkResponse.data.exists) {
+  toast.error('An item with this product and category already exists', {
+    position: 'top-right',
+  });
+  setIsLoading(false);
+  return;
+}
 
       const payload = {
         productId,
@@ -328,7 +326,7 @@ export default function EditItem() {
     router.push('/auth/signin');
   };
 
-  return (
+   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-22 px-0 flex">
       <div className="flex-1 flex flex-col">
         <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
@@ -373,114 +371,43 @@ export default function EditItem() {
                 <h2 className="text-2xl font-semibold text-gray-800 mb-6">Edit Item</h2>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div ref={productDropdownRef}>
+                    <div>
                       <label className="block text-sm font-medium text-gray-700">Product Name</label>
                       <input
                         type="text"
-                        placeholder="Search product names..."
                         value={productSearch}
-                        onChange={(e) => {
-                          setProductSearch(e.target.value);
-                          setShowProductDropdown(true);
-                        }}
-                        onFocus={() => setShowProductDropdown(true)}
-                        className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                        required
+                        disabled
+                        className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
                       />
-                      {showProductDropdown && (
-                        <div className="absolute z-10 mt-1 w-full max-w-md bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                          {filteredProductNames.length > 0 ? (
-                            filteredProductNames.map((productNameObj) => (
-                              <div
-                                key={productNameObj.name}
-                                onClick={() => handleProductChange(productNameObj)}
-                                className="p-2 hover:bg-gray-100 cursor-pointer"
-                              >
-                                {productNameObj.name}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="p-2 text-gray-500">No products found</div>
-                          )}
-                        </div>
-                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Category</label>
                       <select
                         value={formData.category}
-                        onChange={(e) => {
-                          const category = e.target.value;
-                          const selectedProduct = products.find(
-                            (p) => p.name === productSearch && p.category === category
-                          );
-                          console.log('Category changed to', category, 'Selected product:', selectedProduct);
-                          setFormData({
-                            ...formData,
-                            category,
-                            productId: selectedProduct ? selectedProduct._id : '',
-                            discountPercentage: selectedProduct ? selectedProduct.discountPercentage.toString() : '0',
-                          });
-                          if (!selectedProduct) {
-                            setRetailPrice('');
-                            toast.error('No product found for this name and category', { position: 'top-right' });
-                          }
-                        }}
-                        className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                        required
+                        disabled
+                        className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
                       >
-                        <option value="">Select a category</option>
-                        {availableCategories.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                          </option>
-                        ))}
+                        <option value={formData.category}>
+                          {formData.category ? formData.category.charAt(0).toUpperCase() + formData.category.slice(1) : 'Select a category'}
+                        </option>
                       </select>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div ref={colorDropdownRef}>
+                    <div>
                       <label className="block text-sm font-medium text-gray-700">Color</label>
                       <input
                         type="text"
-                        placeholder="Search colors..."
                         value={colorSearch}
-                        onChange={(e) => {
-                          setColorSearch(e.target.value);
-                          setShowColorDropdown(true);
-                        }}
-                        onFocus={() => setShowColorDropdown(true)}
-                        className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                        required
+                        disabled
+                        className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
                       />
-                      {showColorDropdown && (
-                        <div className="absolute z-10 mt-1 w-full max-w-md bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                          {filteredColors.length > 0 ? (
-                            filteredColors.map((color) => (
-                              <div
-                                key={color._id}
-                                onClick={() => handleColorChange(color)}
-                                className="flex items-center p-2 hover:bg-gray-100 cursor-pointer"
-                              >
-                                <div
-                                  className="w-4 h-4 rounded-full mr-2"
-                                  style={{ backgroundColor: color.colorCode }}
-                                ></div>
-                                <span>{color.colorName} ({color.colorCode})</span>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="p-2 text-gray-500">No colors found</div>
-                          )}
-                        </div>
-                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Retail Price (PKR)</label>
                       <input
                         type="number"
                         step="0.01"
-                        placeholder="0.00"
                         value={retailPrice}
                         disabled
                         className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
@@ -493,7 +420,6 @@ export default function EditItem() {
                       <input
                         type="number"
                         step="0.01"
-                        placeholder="0"
                         value={formData.discountPercentage}
                         disabled
                         className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
@@ -504,7 +430,6 @@ export default function EditItem() {
                       <input
                         type="number"
                         step="0.01"
-                        placeholder="0.00"
                         value={calculateSalePrice()}
                         disabled
                         className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
@@ -564,12 +489,12 @@ export default function EditItem() {
                   <div className="flex space-x-2">
                     <button
                       type="submit"
-                      disabled={isLoading || !formData.productId || !formData.category}
+                      disabled={isLoading}
                       className={`flex-1 bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition-colors duration-200 font-medium ${
-                        isLoading || !formData.productId || !formData.category ? 'opacity-50 cursor-not-allowed' : ''
+                        isLoading ? 'opacity-50 cursor-not-allowed' : ''
                       }`}
                     >
-                      {isLoading ? ' Updating...' : 'Update Item'}
+                      {isLoading ? 'Updating...' : 'Update Item'}
                     </button>
                     <button
                       type="button"

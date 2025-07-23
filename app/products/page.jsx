@@ -66,10 +66,10 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center space-x-4">
             <Link
-              href="/products/add"
+              href="/products"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
-              Add Items
+              Manage Items
             </Link>
              <Link
               href="/product"
@@ -92,26 +92,31 @@ export default function Dashboard() {
          
           </div>
         </header>
-        <main className="p-6 flex-1">
-          {isScanning && (
-            <div className="mb-8 p-6 bg-white rounded-xl shadow-lg transform transition-all duration-300">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Scan Barcode</h2>
-              <BarcodeScanner onScan={handleScan} />
-            </div>
-          )}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-gray-800">Inventory</h2>
-              <button
-                onClick={fetchProducts}
-                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-300"
-              >
-                Refresh
-              </button>
-            </div>
-            <ProductList products={products} />
-          </div>
-        </main>
+      <main className="p-6 flex-1 flex flex-col overflow-hidden">
+  {isScanning && (
+    <div className="mb-8 p-6 bg-white rounded-xl shadow-lg transform transition-all duration-300">
+      <h2 className="text-2xl font-semibold text-gray-800 mb-4">Scan Barcode</h2>
+      <BarcodeScanner onScan={handleScan} />
+    </div>
+  )}
+  <div className="bg-white rounded-xl shadow-lg p-6 flex flex-col h-full">
+    <div className="flex justify-between items-center mb-6">
+      <h2 className="text-2xl font-semibold text-gray-800">Inventory</h2>
+      <button
+        onClick={fetchProducts}
+        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-300"
+      >
+        Refresh
+      </button>
+    </div>
+
+    {/* 👇 Scrollable Product List */}
+    <div className="flex-1 px-0">
+      <ProductList products={products} />
+    </div>
+  </div>
+</main>
+
       </div>
      
     </div>

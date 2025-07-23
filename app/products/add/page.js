@@ -102,27 +102,33 @@ export default function AddItem() {
     }
   }, [token, router]);
 
-  const fetchProducts = async () => {
-    setIsLoading(true);
-    try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const fetchedProducts = res.data.products;
-      setProducts(fetchedProducts);
-      const uniqueNames = [...new Set(fetchedProducts.map((p) => p.name))].map((name) => ({
-        name,
-      }));
-      setUniqueProductNames(uniqueNames);
-      setFilteredProductNames(uniqueNames);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to fetch products', {
-        position: 'top-right',
-      });
-    } finally {
-      setIsLoading(false);
+const fetchProducts = async () => {
+  setIsLoading(true);
+  try {
+    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/itemssearch`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const fetchedProducts = res.data.products || [];
+    console.log('Fetched products:', fetchedProducts);
+    if (!Array.isArray(fetchedProducts)) {
+      throw new Error('Invalid product data format');
     }
-  };
+    setProducts(fetchedProducts);
+    const uniqueNames = [...new Set(fetchedProducts.map((p) => p.name))].map((name) => ({
+      name,
+    }));
+    console.log('Unique product names:', uniqueNames);
+    setUniqueProductNames(uniqueNames);
+    setFilteredProductNames(uniqueNames);
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    toast.error(error.message || 'Failed to fetch products', {
+      position: 'top-right',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const fetchColors = async () => {
     setIsLoading(true);
@@ -140,7 +146,18 @@ export default function AddItem() {
       setIsLoading(false);
     }
   };
-
+useEffect(() => {
+  if (productSearch) {
+    const fuse = new Fuse(uniqueProductNames, {
+      keys: ['name'],
+      threshold: 0.3,
+    });
+    const results = fuse.search(productSearch);
+    setFilteredProductNames(results.map((result) => result.item));
+  } else {
+    setFilteredProductNames(uniqueProductNames);
+  }
+}, [productSearch, uniqueProductNames]);
   // Update available categories, retail price, and discount percentage
 useEffect(() => {
   if (productSearch && formData.category) {
@@ -351,35 +368,42 @@ const handleSubmit = async (e) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div ref={productDropdownRef}>
                       <label className="block text-sm font-medium text-gray-700">Product Name</label>
-                      <input
-                        type="text"
-                        placeholder="Search product names..."
-                        value={productSearch}
-                        onChange={(e) => {
-                          setProductSearch(e.target.value);
-                          setShowProductDropdown(true);
-                        }}
-                        onFocus={() => setShowProductDropdown(true)}
-                        className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                        required
-                      />
-                      {showProductDropdown && (
-                        <div className="absolute z-10 mt-1 w-full max-w-md bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                          {filteredProductNames.length > 0 ? (
-                            filteredProductNames.map((productNameObj) => (
-                              <div
-                                key={productNameObj.name}
-                                onClick={() => handleProductChange(productNameObj)}
-                                className="p-2 hover:bg-gray-100 cursor-pointer"
-                              >
-                                {productNameObj.name}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="p-2 text-gray-500">No products found</div>
-                          )}
-                        </div>
-                      )}
+                    <input
+  type="text"
+  placeholder="Search product names..."
+  value={productSearch}
+  onChange={(e) => {
+    setProductSearch(e.target.value);
+    setShowProductDropdown(true);
+    console.log('Product search input:', e.target.value); // Debug log
+  }}
+  onFocus={() => {
+    setShowProductDropdown(true);
+    console.log('Dropdown opened, filtered products:', filteredProductNames); // Debug log
+  }}
+  className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+  required
+/>
+{showProductDropdown && (
+  <div className="absolute z-10 mt-1 w-full max-w-md bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+    {filteredProductNames.length > 0 ? (
+      filteredProductNames.map((productNameObj) => (
+        <div
+          key={productNameObj.name}
+          onClick={() => {
+            handleProductChange(productNameObj);
+            console.log('Selected product:', productNameObj.name); // Debug log
+          }}
+          className="p-2 hover:bg-gray-100 cursor-pointer"
+        >
+          {productNameObj.name}
+        </div>
+      ))
+    ) : (
+      <div className="p-2 text-gray-500">No products found</div>
+    )}
+  </div>
+)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Category</label>
@@ -560,6 +584,7 @@ const handleSubmit = async (e) => {
             )}
           </div>
         </main>
+        
       </div>
       <ToastContainer />
     </div>

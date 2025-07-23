@@ -94,6 +94,8 @@ export default function ProductList({ products: initialProducts }) {
               <th className="p-3 text-left font-semibold">Color</th>
               <th className="p-3 text-left font-semibold">Color Code</th>
               <th className="p-3 text-left font-semibold">Category</th>
+              <th className="p-3 text-left font-semibold">Stock</th>
+
               <th className="p-3 text-left font-semibold">Shelf</th>
               <th className="p-3 text-left font-semibold">Barcode</th>
               <th className="p-3 text-left font-semibold">Actions</th>
@@ -125,6 +127,8 @@ export default function ProductList({ products: initialProducts }) {
                   <td className="p-3">{item.color || 'N/A'}</td>
                   <td className="p-3">{item.colorCode || 'N/A'}</td>
                   <td className="p-3">{item.category || 'N/A'}</td>
+                    <td className="p-3">{item.maxStock || 'N/A'}</td>
+
                   <td className="p-3">{item.shelf || 'N/A'}</td>
                   <td className="p-3">{item.barcode || 'N/A'}</td>
                   <td className="p-3 flex space-x-2">

@@ -17,6 +17,12 @@ export default function ProductList({ products: initialProducts }) {
   const [selectedItemLogs, setSelectedItemLogs] = useState([]);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState(null);
+  const [totals, setTotals] = useState({
+    totalQuantity: 0,
+    totalCostPrice: 0,
+    totalRetailPrice: 0,
+    totalSalePrice: 0,
+  });
   const router = useRouter();
   const token = localStorage.getItem('token');
 
@@ -25,12 +31,25 @@ export default function ProductList({ products: initialProducts }) {
     debounce(async (searchQuery, pageNum) => {
       setIsLoading(true);
       try {
+        // Fetch paginated items
         const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/items`, {
           params: { search: searchQuery, page: pageNum, limit },
           headers: { Authorization: `Bearer ${token}` },
         });
         setProducts(res.data.items);
         setTotalPages(Math.ceil(res.data.total / limit));
+
+        // Fetch totals for all items
+        const totalsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/items/totals`, {
+          params: { search: searchQuery },
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setTotals({
+          totalQuantity: totalsRes.data.totalQuantity || 0,
+          totalCostPrice: totalsRes.data.totalCostPrice || 0,
+          totalRetailPrice: totalsRes.data.totalRetailPrice || 0,
+          totalSalePrice: totalsRes.data.totalSalePrice || 0,
+        });
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to fetch items', {
           position: 'top-right',
@@ -98,26 +117,6 @@ export default function ProductList({ products: initialProducts }) {
     setSelectedItemId(null);
   };
 
-  // Calculate inventory totals
-  const totalQuantity = products.reduce((sum, item) => sum + (item.quantity || 0), 0);
-  const totalCostPrice = products
-    .reduce((sum, item) => sum + (item.quantity || 0) * (item.productId?.costPrice || 0), 0)
-    .toFixed(2);
-  const totalRetailPrice = products
-    .reduce((sum, item) => sum + (item.quantity || 0) * (item.productId?.retailPrice || 0), 0)
-    .toFixed(2);
-  const totalSalePrice = products
-    .reduce(
-      (sum, item) =>
-        sum +
-        (item.quantity || 0) *
-        (item.productId?.retailPrice
-          ? calculateSalePrice(item.productId.retailPrice, item.discountPercentage)
-          : 0),
-      0
-    )
-    .toFixed(2);
-
   return (
     <div className="container mx-auto p-2 px-0 sm:p-6 space-y-6 bg-gradient-to-br from-gray-50 to-gray-100 h-screen overflow-hidden">
       <ToastContainer theme="colored" />
@@ -160,7 +159,7 @@ export default function ProductList({ products: initialProducts }) {
       <div className="bg-white rounded-xl shadow-md max-h-[calc(100vh-200px)] ">
         {/* Table layout for desktop */}
         <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full border-collapse ">
+          <table className="w-full border-collapse">
             <thead>
               <tr className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
                 <th className="p-2 text-left font-semibold text-sm uppercase tracking-wide">S.No</th>
@@ -219,7 +218,6 @@ export default function ProductList({ products: initialProducts }) {
                     <td className="p-2 text-gray-600">{item.productId?.retailPrice?.toFixed(2) || 'N/A'}</td>
                     <td className="p-2 text-gray-600">{item.discountPercentage}%</td>
                     <td className="p-2 text-gray-600">
-                      {' '}
                       {item.productId?.retailPrice
                         ? calculateSalePrice(item.productId.retailPrice, item.discountPercentage)
                         : 'N/A'}
@@ -290,20 +288,7 @@ export default function ProductList({ products: initialProducts }) {
                 </tr>
               )}
             </tbody>
-            {products.length > 0 && (
-              <tfoot>
-                <tr className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold">
-                  <td className="p-2">Total</td>
-                  <td className="p-2"></td>
-                  <td className="p-2">{totalQuantity}</td>
-                  <td className="p-2">{totalCostPrice}</td>
-                  <td className="p-2">{totalRetailPrice}</td>
-                  <td className="p-2"></td>
-                  <td className="p-2">{totalSalePrice}</td>
-                  <td className="p-2" colSpan="7"></td>
-                </tr>
-              </tfoot>
-            )}
+          
           </table>
         </div>
 
@@ -461,16 +446,19 @@ export default function ProductList({ products: initialProducts }) {
           <h3 className="text-lg font-semibold text-gray-800 mb-4">Inventory Summary</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-gray-600">
             <p>
-              <span className="font-medium">Total Quantity:</span> {totalQuantity}
+              <span className="font-medium">Total Quantity:</span> {totals.totalQuantity}
             </p>
             <p>
-              <span className="font-medium">Total Cost Price:</span> PKR {totalCostPrice}
+              <span className="font-medium">Total Cost Price:</span> PKR{' '}
+              {totals.totalCostPrice.toFixed(2)}
             </p>
             <p>
-              <span className="font-medium">Total Retail Price:</span> PKR {totalRetailPrice}
+              <span className="font-medium">Total Retail Price:</span> PKR{' '}
+              {totals.totalRetailPrice.toFixed(2)}
             </p>
             <p>
-              <span className="font-medium">Total Sale Price:</span> PKR {totalSalePrice}
+              <span className="font-medium">Total Sale Price:</span> PKR{' '}
+              {totals.totalSalePrice.toFixed(2)}
             </p>
           </div>
         </div>

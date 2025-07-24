@@ -25,9 +25,14 @@ export default function ManageProducts() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [totals, setTotals] = useState({
+    totalCostPrice: 0,
+    totalRetailPrice: 0,
+    totalSalePrice: 0,
+  });
   const router = useRouter();
   const token = localStorage.getItem('token');
-  const categories = ['gallon', 'quarter', 'drums', 'liters','Dibbi'];
+  const categories = ['gallon', 'quarter', 'drums', 'liters', 'Dibbi'];
 
   useEffect(() => {
     if (!token) {
@@ -40,12 +45,24 @@ export default function ManageProducts() {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
+      // Fetch paginated products
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
         params: { search, page, limit },
         headers: { Authorization: `Bearer ${token}` },
       });
       setProducts(res.data.products);
       setTotalPages(Math.ceil(res.data.total / limit));
+
+      // Fetch totals for all products (new API call or modified endpoint)
+      const totalsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/totals`, {
+        params: { search }, // Include search to filter totals if needed
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setTotals({
+        totalCostPrice: totalsRes.data.totalCostPrice || 0,
+        totalRetailPrice: totalsRes.data.totalRetailPrice || 0,
+        totalSalePrice: totalsRes.data.totalSalePrice || 0,
+      });
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch products', {
         position: 'top-right',
@@ -164,34 +181,18 @@ export default function ManageProducts() {
   };
 
   const calculateSalePrice = (retailPrice, discountPercentage) => {
-    return (retailPrice - (retailPrice * discountPercentage) / 100).toFixed(2);
+    const retail = Number(retailPrice) || 0;
+    const discount = Number(discountPercentage) || 0;
+    return (retail - (retail * discount) / 100).toFixed(2);
   };
-
-  // Calculate totals
-  const totalCostPrice = products
-    .reduce((sum, product) => sum + (product.costPrice || 0), 0)
-    .toFixed(2);
-  const totalRetailPrice = products
-    .reduce((sum, product) => sum + (product.retailPrice || 0), 0)
-    .toFixed(2);
-const totalSalePrice = Number(
-  products.reduce((sum, product) => {
-    if (typeof product.retailPrice === 'number') {
-      const salePrice = calculateSalePrice(product.retailPrice, product.discountPercentage || 0);
-      return sum + (isNaN(salePrice) ? 0 : salePrice);
-    }
-    return sum;
-  }, 0)
-).toFixed(2);
 
   return (
     <div className="min-h-screen py-20 bg-gradient-to-br from-gray-50 to-gray-100 flex">
       <ToastContainer theme="colored" />
-     
 
       <div className="flex-1 flex flex-col">
         {/* Header */}
-     <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
+        <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -210,20 +211,18 @@ const totalSalePrice = Number(
             >
               Manage Items
             </Link>
-             <Link
+            <Link
               href="/product"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
               Manage Product
             </Link>
-              <Link
+            <Link
               href="/colors"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
               Manage Colors
             </Link>
-           
-         
           </div>
         </header>
         {/* Main Content */}
@@ -398,19 +397,7 @@ const totalSalePrice = Number(
                     </tr>
                   )}
                 </tbody>
-                {products?.length > 0 && (
-                  <tfoot>
-                    <tr className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold">
-                      <td className="p-4">Total</td>
-                      <td className="p-4"></td>
-                      <td className="p-4">PKR {totalCostPrice}</td>
-                      <td className="p-4">PKR {totalRetailPrice}</td>
-                      <td className="p-4"></td>
-                      <td className="p-4">PKR {totalSalePrice}</td>
-                      <td className="p-4" colSpan="2"></td>
-                    </tr>
-                  </tfoot>
-                )}
+           
               </table>
             </div>
 
@@ -549,13 +536,16 @@ const totalSalePrice = Number(
                 <h3 className="text-lg font-semibold text-gray-800 mb-4">Inventory Summary</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-600">
                   <p>
-                    <span className="font-medium">Total Cost Price:</span> PKR {totalCostPrice}
+                    <span className="font-medium">Total Cost Price:</span> PKR{' '}
+                    {totals.totalCostPrice.toFixed(2)}
                   </p>
                   <p>
-                    <span className="font-medium">Total Retail Price:</span> PKR {totalRetailPrice}
+                    <span className="font-medium">Total Retail Price:</span> PKR{' '}
+                    {totals.totalRetailPrice.toFixed(2)}
                   </p>
                   <p>
-                    <span className="font-medium">Total Sale Price:</span> PKR {totalSalePrice}
+                    <span className="font-medium">Total Sale Price:</span> PKR{' '}
+                    {totals.totalSalePrice.toFixed(2)}
                   </p>
                 </div>
               </div>

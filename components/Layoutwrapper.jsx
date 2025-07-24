@@ -39,7 +39,6 @@ export default function LayoutWrapper({ children }) {
         return;
       }
 
-      // Validate token with backend
       try {
         await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/auth/validate-token`, {
           headers: { Authorization: `Bearer ${token}` },

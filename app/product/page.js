@@ -30,6 +30,8 @@ export default function ManageProducts() {
     totalRetailPrice: 0,
     totalSalePrice: 0,
   });
+  const [editingCell, setEditingCell] = useState(null); // { productId, field }
+  const [editValue, setEditValue] = useState(''); // Temporary value for editing
   const router = useRouter();
   const token = localStorage.getItem('token');
   const categories = ['gallon', 'quarter', 'drums', 'liters', 'Dibbi'];
@@ -53,9 +55,9 @@ export default function ManageProducts() {
       setProducts(res.data.products);
       setTotalPages(Math.ceil(res.data.total / limit));
 
-      // Fetch totals for all products (new API call or modified endpoint)
+      // Fetch totals for all products
       const totalsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/totals`, {
-        params: { search }, // Include search to filter totals if needed
+        params: { search },
         headers: { Authorization: `Bearer ${token}` },
       });
       setTotals({
@@ -142,6 +144,49 @@ export default function ManageProducts() {
     }
   };
 
+  const handleInlineEdit = async (productId, field, value) => {
+    // Validate input
+    if (field === 'costPrice' || field === 'retailPrice') {
+      if (value < 0) {
+        toast.error(`${field === 'costPrice' ? 'Cost Price' : 'Retail Price'} cannot be negative`, {
+          position: 'top-right',
+        });
+        return;
+      }
+    } else if (field === 'discountPercentage') {
+      if (value < 0 || value > 100) {
+        toast.error('Discount percentage must be between 0 and 100', { position: 'top-right' });
+        return;
+      }
+    }
+
+    try {
+      const product = products.find((p) => p._id === productId);
+      const updatedData = {
+        name: product.name,
+        costPrice: field === 'costPrice' ? Number(value) : product.costPrice,
+        retailPrice: field === 'retailPrice' ? Number(value) : product.retailPrice,
+        discountPercentage: field === 'discountPercentage' ? Number(value) : product.discountPercentage,
+        category: product.category,
+      };
+
+      await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}/product/${productId}`,
+        updatedData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Product updated successfully!', { position: 'top-right' });
+      fetchProducts(); // Refresh products and totals
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update product', {
+        position: 'top-right',
+      });
+    } finally {
+      setEditingCell(null); // Exit editing mode
+      setEditValue('');
+    }
+  };
+
   const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this product?')) {
       try {
@@ -152,7 +197,8 @@ export default function ManageProducts() {
         fetchProducts();
       } catch (error) {
         toast.error(error.response?.data?.message || 'Failed to delete product', {
-          position: 'top-right' });
+          position: 'top-right',
+        });
       }
     }
   };
@@ -184,6 +230,17 @@ export default function ManageProducts() {
     const retail = Number(retailPrice) || 0;
     const discount = Number(discountPercentage) || 0;
     return (retail - (retail * discount) / 100).toFixed(2);
+  };
+
+  const startEditing = (productId, field, value) => {
+    setEditingCell({ productId, field });
+    setEditValue(value.toString());
+  };
+
+  const handleKeyDown = (e, productId, field) => {
+    if (e.key === 'Enter') {
+      handleInlineEdit(productId, field, editValue);
+    }
   };
 
   return (
@@ -320,9 +377,63 @@ export default function ManageProducts() {
                       >
                         <td className="p-4 text-gray-600">{(page - 1) * limit + index + 1}</td>
                         <td className="p-4 text-gray-800 font-medium">{product.name}</td>
-                        <td className="p-4 text-gray-600">PKR {product.costPrice.toFixed(2)}</td>
-                        <td className="p-4 text-gray-600">PKR {product.retailPrice.toFixed(2)}</td>
-                        <td className="p-4 text-gray-600">{product.discountPercentage}%</td>
+                        <td
+                          className="p-4 text-gray-600 cursor-pointer"
+                          onDoubleClick={() => startEditing(product._id, 'costPrice', product.costPrice)}
+                        >
+                          {editingCell?.productId === product._id && editingCell?.field === 'costPrice' ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleInlineEdit(product._id, 'costPrice', editValue)}
+                              onKeyDown={(e) => handleKeyDown(e, product._id, 'costPrice')}
+                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
+                              autoFocus
+                            />
+                          ) : (
+                            `PKR ${product.costPrice.toFixed(2)}`
+                          )}
+                        </td>
+                        <td
+                          className="p-4 text-gray-600 cursor-pointer"
+                          onDoubleClick={() => startEditing(product._id, 'retailPrice', product.retailPrice)}
+                        >
+                          {editingCell?.productId === product._id && editingCell?.field === 'retailPrice' ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleInlineEdit(product._id, 'retailPrice', editValue)}
+                              onKeyDown={(e) => handleKeyDown(e, product._id, 'retailPrice')}
+                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
+                              autoFocus
+                            />
+                          ) : (
+                            `PKR ${product.retailPrice.toFixed(2)}`
+                          )}
+                        </td>
+                        <td
+                          className="p-4 text-gray-600 cursor-pointer"
+                          onDoubleClick={() => startEditing(product._id, 'discountPercentage', product.discountPercentage)}
+                        >
+                          {editingCell?.productId === product._id && editingCell?.field === 'discountPercentage' ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleInlineEdit(product._id, 'discountPercentage', editValue)}
+                              onKeyDown={(e) => handleKeyDown(e, product._id, 'discountPercentage')}
+                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
+                              autoFocus
+                            />
+                          ) : (
+                            `${product.discountPercentage}%`
+                          )}
+                        </td>
                         <td className="p-4 text-gray-600">
                           PKR {calculateSalePrice(product.retailPrice, product.discountPercentage)}
                         </td>
@@ -397,7 +508,7 @@ export default function ManageProducts() {
                     </tr>
                   )}
                 </tbody>
-           
+            
               </table>
             </div>
 
@@ -439,17 +550,65 @@ export default function ManageProducts() {
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                       <div>
-                        <p>
-                          <span className="font-medium">Cost Price:</span> PKR{' '}
-                          {product.costPrice.toFixed(2)}
+                        <p
+                          className="cursor-pointer"
+                          onDoubleClick={() => startEditing(product._id, 'costPrice', product.costPrice)}
+                        >
+                          <span className="font-medium">Cost Price:</span>{' '}
+                          {editingCell?.productId === product._id && editingCell?.field === 'costPrice' ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleInlineEdit(product._id, 'costPrice', editValue)}
+                              onKeyDown={(e) => handleKeyDown(e, product._id, 'costPrice')}
+                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
+                              autoFocus
+                            />
+                          ) : (
+                            `PKR ${product.costPrice.toFixed(2)}`
+                          )}
                         </p>
-                        <p>
-                          <span className="font-medium">Retail Price:</span> PKR{' '}
-                          {product.retailPrice.toFixed(2)}
+                        <p
+                          className="cursor-pointer"
+                          onDoubleClick={() => startEditing(product._id, 'retailPrice', product.retailPrice)}
+                        >
+                          <span className="font-medium">Retail Price:</span>{' '}
+                          {editingCell?.productId === product._id && editingCell?.field === 'retailPrice' ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleInlineEdit(product._id, 'retailPrice', editValue)}
+                              onKeyDown={(e) => handleKeyDown(e, product._id, 'retailPrice')}
+                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
+                              autoFocus
+                            />
+                          ) : (
+                            `PKR ${product.retailPrice.toFixed(2)}`
+                          )}
                         </p>
-                        <p>
+                        <p
+                          className="cursor-pointer"
+                          onDoubleClick={() => startEditing(product._id, 'discountPercentage', product.discountPercentage)}
+                        >
                           <span className="font-medium">Discount:</span>{' '}
-                          {product.discountPercentage}%
+                          {editingCell?.productId === product._id && editingCell?.field === 'discountPercentage' ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleInlineEdit(product._id, 'discountPercentage', editValue)}
+                              onKeyDown={(e) => handleKeyDown(e, product._id, 'discountPercentage')}
+                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
+                              autoFocus
+                            />
+                          ) : (
+                            `${product.discountPercentage}%`
+                          )}
                         </p>
                       </div>
                       <div>

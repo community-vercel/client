@@ -26,6 +26,7 @@ export default function EditItem() {
   const [productSearch, setProductSearch] = useState('');
   const [colors, setColors] = useState([]);
   const [filteredColors, setFilteredColors] = useState([]);
+  console.log('Colors:', filteredColors);
   const [colorSearch, setColorSearch] = useState('');
   const [availableCategories, setAvailableCategories] = useState([]);
   const [retailPrice, setRetailPrice] = useState('');
@@ -81,11 +82,11 @@ export default function EditItem() {
   const fetchColors = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/colors`, {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/colors/allcolors`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setColors(res.data.colors);
-      setFilteredColors(res.data.colors);
+      setColors(res.data);
+setFilteredColors(res.data);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch colors', {
         position: 'top-right',

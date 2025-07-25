@@ -79,19 +79,21 @@ export default function AddItem() {
   }
 }, [productSearch, formData.category, products]);
   // Handle color search
-  useEffect(() => {
-    const colorFuse = new Fuse(colors, {
-      keys: ['colorName', 'colorCode'],
-      threshold: 0.3,
-    });
-    if (colorSearch) {
-      const results = colorFuse.search(colorSearch);
-      setFilteredColors(results.map((result) => result.item));
-    } else {
-      setFilteredColors(colors);
-    }
-  }, [colorSearch, colors]);
-
+ useEffect(() => {
+  console.log('Color search:', colorSearch, 'Colors length:', colors.length); // Debug log
+  const colorFuse = new Fuse(colors, {
+    keys: ['colorName', 'colorCode'],
+    threshold: 0.3,
+  });
+  if (colorSearch) {
+    const results = colorFuse.search(colorSearch);
+    console.log('Fuse search results:', results.length); // Debug log
+    setFilteredColors(results.map((result) => result.item));
+  } else {
+    console.log('Setting filteredColors to all colors:', colors.length); // Debug log
+    setFilteredColors(colors);
+  }
+}, [colorSearch, colors]);
   // Fetch products and colors
   useEffect(() => {
     if (!token) {
@@ -133,11 +135,11 @@ const fetchProducts = async () => {
   const fetchColors = async () => {
     setIsLoading(true);
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/colors`, {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/colors/allcolors`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setColors(res.data.colors);
-      setFilteredColors(res.data.colors);
+      setColors(res.data);
+      setFilteredColors(res.data);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch colors', {
         position: 'top-right',
@@ -320,6 +322,9 @@ const handleSubmit = async (e) => {
     localStorage.removeItem('token');
     router.push('/auth/signin');
   };
+ console.log('Filtered colors:', filteredColors.length);
+    console.log('Filtered colors:', colors.length);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-22 px-0 flex">
@@ -453,27 +458,27 @@ const handleSubmit = async (e) => {
                         className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
                         required
                       />
-                      {showColorDropdown && (
-                        <div className="absolute z-10 mt-1 w-full max-w-md bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                          {filteredColors.length > 0 ? (
-                            filteredColors.map((color) => (
-                              <div
-                                key={color._id}
-                                onClick={() => handleColorChange(color)}
-                                className="flex items-center p-2 hover:bg-gray-100 cursor-pointer"
-                              >
-                                <div
-                                  className="w-4 h-4 rounded-full mr-2"
-                                  style={{ backgroundColor: color.colorCode }}
-                                ></div>
-                                <span>{color.colorName} ({color.colorCode})</span>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="p-2 text-gray-500">No colors found</div>
-                          )}
-                        </div>
-                      )}
+                 {showColorDropdown && (
+<div className="absolute z-10 mt-1 w-full max-w-md bg-white border border-gray-300 rounded-md shadow-lg max-h-96 overflow-y-auto">    {console.log('Rendering colors:', filteredColors.length)} {/* Debug log */}
+    {filteredColors.length > 0 ? (
+      filteredColors.map((color) => (
+        <div
+          key={color._id}
+          onClick={() => handleColorChange(color)}
+          className="flex items-center p-2 hover:bg-gray-100 cursor-pointer"
+        >
+          <div
+            className="w-4 h-4 rounded-full mr-2"
+            style={{ backgroundColor: color.colorCode }}
+          ></div>
+          <span>{color.colorName} ({color.colorCode})</span>
+        </div>
+      ))
+    ) : (
+      <div className="p-2 text-gray-500">No colors found</div>
+    )}
+  </div>
+)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Retail Price (PKR)</label>

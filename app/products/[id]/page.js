@@ -242,6 +242,7 @@ export default function EditItem() {
       });
       return;
     }
+    
     if (minStock > maxStock) {
       toast.error('Min stock cannot be greater than max stock', {
         position: 'top-right',

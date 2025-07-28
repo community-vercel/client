@@ -26,7 +26,6 @@ export default function EditItem() {
   const [productSearch, setProductSearch] = useState('');
   const [colors, setColors] = useState([]);
   const [filteredColors, setFilteredColors] = useState([]);
-  console.log('Colors:', filteredColors);
   const [colorSearch, setColorSearch] = useState('');
   const [availableCategories, setAvailableCategories] = useState([]);
   const [retailPrice, setRetailPrice] = useState('');
@@ -52,7 +51,7 @@ export default function EditItem() {
 
   // Fetch item after products are loaded
   useEffect(() => {
-    if (products.length > 0 && token) {
+    if (products.length > 0 && token && id) {
       fetchItem();
     }
   }, [products, token, id]);
@@ -86,7 +85,7 @@ export default function EditItem() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setColors(res.data);
-setFilteredColors(res.data);
+      setFilteredColors(res.data);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch colors', {
         position: 'top-right',
@@ -102,29 +101,31 @@ setFilteredColors(res.data);
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/items/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      const item = res.data;
+      console.log('Fetched item:', item); // Debug log
       setFormData({
-        productId: res.data.productId._id,
-        quantity: res.data.quantity.toString(),
-        barcode: res.data.barcode || '',
-        shelf: res.data.shelf || '',
-        minStock: res.data.minStock,
-        maxStock: res.data.maxStock,
-        color: res.data.color || '',
-        colorCode: res.data.colorCode || '',
-        category: res.data.category || '',
-        discountPercentage: res.data.discountPercentage.toString(),
+        productId: item.productId?._id || '',
+        quantity: item.quantity?.toString() || '0',
+        barcode: item.barcode || '',
+        shelf: item.shelf || '',
+        minStock: item.minStock || 5,
+        maxStock: item.maxStock || 50,
+        color: item.color || '',
+        colorCode: item.colorCode || '',
+        category: item.category || '',
+        discountPercentage: item.discountPercentage?.toString() || '0',
       });
-      setProductSearch(res.data.productId.name);
-      setColorSearch(res.data.color || '');
-      setRetailPrice(res.data.productId.retailPrice?.toFixed(2) || '');
+      setProductSearch(item.productId?.name || '');
+      setColorSearch(item.color || '');
+      setRetailPrice(item.productId?.retailPrice?.toFixed(2) || '');
       // Set available categories based on the product's name
       const productCategories = products
-        .filter((p) => p.name === res.data.productId.name)
+        .filter((p) => p.name === item.productId?.name)
         .map((p) => p.category);
       setAvailableCategories([...new Set(productCategories)]);
-      console.log('Available categories for', res.data.productId.name, ':', productCategories);
-      console.log('Pre-selected category:', res.data.category);
+      console.log('Available categories:', productCategories);
     } catch (error) {
+      console.error('Fetch item error:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to fetch item', {
         position: 'top-right',
       });
@@ -161,46 +162,34 @@ setFilteredColors(res.data);
     }
   }, [colorSearch, colors]);
 
-  // Update available categories, retail price, and discount percentage
-useEffect(() => {
-  if (productSearch && formData.category) {
-    const matchingProduct = products.find(
-      (p) => p.name === productSearch && p.category === formData.category
-    );
-    console.log('Selected product for', productSearch, formData.category, ':', matchingProduct);
-    if (matchingProduct) {
-      setFormData((prev) => ({
-        ...prev,
-        productId: matchingProduct._id,
-        discountPercentage: matchingProduct.discountPercentage.toString(),
-      }));
-      setRetailPrice(matchingProduct.retailPrice.toFixed(2));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        productId: '',
-        discountPercentage: '0',
-      }));
-      setRetailPrice('');
-      toast.error('No product found for this name and category', { position: 'top-right' });
+  // Update available categories and retail price (only when category changes)
+  useEffect(() => {
+    if (productSearch && formData.category) {
+      const matchingProduct = products.find(
+        (p) => p.name === productSearch && p.category === formData.category
+      );
+      console.log('Matching product:', matchingProduct); // Debug log
+      if (matchingProduct) {
+        setFormData((prev) => ({
+          ...prev,
+          productId: matchingProduct._id,
+          discountPercentage: matchingProduct.discountPercentage.toString(),
+        }));
+        setRetailPrice(matchingProduct.retailPrice.toFixed(2));
+      } else {
+        // Only show error if the category was changed (not on initial load)
+        if (formData.category !== '') {
+        }
+      }
+    } else if (productSearch) {
+      const productCategories = products
+        .filter((p) => p.name === productSearch)
+        .map((p) => p.category);
+      setAvailableCategories([...new Set(productCategories)]);
+      console.log('Available categories for', productSearch, ':', productCategories);
     }
-  } else if (productSearch) {
-    const productCategories = products
-      .filter((p) => p.name === productSearch)
-      .map((p) => p.category);
-    setAvailableCategories([...new Set(productCategories)]);
-    console.log('Available categories for', productSearch, ':', productCategories);
-  } else {
-    setAvailableCategories([]);
-    setRetailPrice('');
-    setFormData((prev) => ({
-      ...prev,
-      productId: '',
-      category: '',
-      discountPercentage: '0',
-    }));
-  }
-}, [productSearch, formData.category, products]);
+  }, [productSearch, formData.category, products]);
+
   // Handle clicks outside dropdowns
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -273,22 +262,17 @@ useEffect(() => {
     }
     setIsLoading(true);
     try {
-      // Check if another item with the same productId and category exists, excluding the current item
-      console.log('Checking item existence:', { productId, category });
-   const checkResponse = await axios.get(
-  `${process.env.NEXT_PUBLIC_API_URL}/items/check`,
-  {
-    params: { productId, category, excludeId: id },
-    headers: { Authorization: `Bearer ${token}` },
-  }
-);
-if (checkResponse.data.exists) {
-  toast.error('An item with this product and category already exists', {
-    position: 'top-right',
-  });
-  setIsLoading(false);
-  return;
-}
+      const checkResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/items/check`, {
+        params: { productId, category, excludeId: id },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (checkResponse.data.exists) {
+        toast.error('An item with this product and category already exists', {
+          position: 'top-right',
+        });
+        setIsLoading(false);
+        return;
+      }
 
       const payload = {
         productId,
@@ -303,17 +287,13 @@ if (checkResponse.data.exists) {
         discountPercentage: Number(discountPercentage),
       };
       console.log('Updating item:', payload);
-      await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/items/${id}`,
-        payload,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/items/${id}`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       toast.success('Item updated successfully!', { position: 'top-right' });
       router.push('/products');
     } catch (error) {
-      console.error('Error in handleSubmit:', error.response?.data, error.stack);
+      console.error('Error in handleSubmit:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to update item', {
         position: 'top-right',
       });
@@ -327,10 +307,10 @@ if (checkResponse.data.exists) {
     router.push('/auth/signin');
   };
 
-   return (
+  return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 py-22 px-0 flex">
       <div className="flex-1 flex flex-col">
-        <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
+     <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -397,12 +377,35 @@ if (checkResponse.data.exists) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Color</label>
-                      <input
-                        type="text"
-                        value={colorSearch}
-                        disabled
-                        className="mt-1 p-3 border border-gray-300 rounded-md w-full bg-gray-100"
-                      />
+                      <div className="relative" ref={colorDropdownRef}>
+                        <input
+                          type="text"
+                          value={colorSearch}
+                          onChange={(e) => {
+                            setColorSearch(e.target.value);
+                            setShowColorDropdown(true);
+                          }}
+                          placeholder="Search colors..."
+                          className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
+                        />
+                        {showColorDropdown && (
+                          <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                            {filteredColors.map((color) => (
+                              <li
+                                key={color._id}
+                                onClick={() => handleColorChange(color)}
+                                className="p-3 hover:bg-gray-100 cursor-pointer flex items-center"
+                              >
+                                <span
+                                  className="inline-block w-5 h-5 rounded-full mr-2"
+                                  style={{ backgroundColor: color.colorCode }}
+                                ></span>
+                                {color.colorName} ({color.colorCode})
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Retail Price (PKR)</label>

@@ -841,6 +841,7 @@ const [dailyReport, setDailyReport] = useState(null);
 
     </div>
     
+
   <Modal
           isOpen={isReportModalOpen}
           onClose={() => {

@@ -1,6 +1,5 @@
 'use client';
 import { jwtDecode } from 'jwt-decode';
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Chart from '../../components/Chart';

@@ -840,6 +840,7 @@ const [dailyReport, setDailyReport] = useState(null);
       </motion.div>
 
     </div>
+    
   <Modal
           isOpen={isReportModalOpen}
           onClose={() => {

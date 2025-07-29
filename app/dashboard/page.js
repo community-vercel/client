@@ -122,6 +122,43 @@ export default function Dashboard() {
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
+  
+const [dailyReport, setDailyReport] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [storeName, setStoreName] = useState('Your Store Name');
+
+  const [isLoading, setIsLoading] = useState(false); // Added loading state
+
+  const fetchDailyReport = async (date) => {
+    try {
+      setIsLoading(true); // Start loader
+      const [reportRes, settingsRes, backupsRes] = await Promise.all([
+        api.get(`/transactions/daily-report?date=${date}`),
+        api.get('/settings'),
+       
+      ]);
+      setDailyReport(reportRes.data);
+      setStoreName(settingsRes.data.siteName || 'Your Store Name');
+      const pdfRes = await api.get(`/transactions/generate-pdf?date=${date}`);
+      setPdfUrl(pdfRes.data.url);
+      setIsReportModalOpen(true);
+    } catch (error) {
+      const errorMessage = error.response?.status === 404
+        ? 'Backup endpoint not found. Please check the backend configuration.'
+        : error.response?.data?.message || 'Failed to fetch daily report or backups.';
+      setError(errorMessage);
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false); // Stop loader
+    }
+  };
+
+
+   const handleReportDateChange = (e) => {
+    setReportDate(e.target.value);
+  };
 
   // Handle transaction edit
   const handleEdit = (transaction) => {
@@ -334,7 +371,11 @@ export default function Dashboard() {
       router.push('/login');
     }
   }, [router]);
+
+
   return (
+    <>
+   
     <div className="bg-gradient-to-br from-gray-900 via-indigo-900 to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
       <motion.div
         variants={containerVariants}
@@ -345,6 +386,62 @@ export default function Dashboard() {
         <h1 className="text-4xl font-extrabold text-white text-center mb-8 mt-14">
           Financial Dashboard
         </h1>
+<motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="mb-8 bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
+        >
+          <h3 className="text-lg font-semibold text-white mb-4">View Daily Report</h3>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <input
+              type="date"
+              value={reportDate}
+              onChange={handleReportDateChange}
+              max={today}
+              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              aria-label="Report Date"
+            />
+          <button
+            onClick={() => fetchDailyReport(reportDate)}
+            disabled={isLoading}
+            className={`flex items-center px-4 py-2 rounded-lg font-semibold transition ${
+              isLoading
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-indigo-500 text-white hover:bg-indigo-600'
+            }`}
+            aria-label="View Daily Report"
+          >
+            {isLoading ? (
+              <>
+                <svg
+                  className="animate-spin h-5 w-5 mr-2 text-gray-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Loading...
+              </>
+            ) : (
+              'View Report'
+            )}
+          </button>
+          </div>
+        </motion.div>
 
         {/* Filters */}
         <motion.div
@@ -741,6 +838,121 @@ export default function Dashboard() {
           </form>
         </Modal>
       </motion.div>
+
     </div>
+  <Modal
+          isOpen={isReportModalOpen}
+          onClose={() => {
+            setIsReportModalOpen(false);
+            setDailyReport(null);
+            setPdfUrl(null);
+          
+          }}
+          title={`${storeName} - Daily Report - ${reportDate}`}
+          aria-label="Daily Report Modal"
+          className="max-w-8xl w-full mx-8 py-12"
+        >
+          {dailyReport ? (
+            <div className="space-y-2 p-2">
+              {/* Summary Section */}
+              <div className="bg-indigo-50 p-0 px-4 rounded-lg shadow-sm">
+                <h4 className="text-lg font-semibold text-indigo-800 mb-3">Summary</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <p className="text-gray-700">
+                    Opening Balance: <span className="font-medium">{formatCurrency(dailyReport.summary.openingBalance)}</span>
+                  </p>
+                  <p className="text-gray-700">
+                    Total Receivables: <span className="font-medium">{formatCurrency(dailyReport.summary.totalReceivables)}</span>
+                  </p>
+                  <p className="text-gray-700">
+                    Total Payables: <span className="font-medium">{formatCurrency(dailyReport.summary.totalPayables)}</span>
+                  </p>
+                  <p className="text-gray-700">
+                    Daily Balance: <span className="font-medium">{formatCurrency(dailyReport.summary.dailyBalance)}</span>
+                  </p>
+                  <p className="text-gray-700">
+                    Closing Balance: <span className="font-medium">{formatCurrency(dailyReport.summary.closingBalance)}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Transactions Section */}
+              <div className="bg-white p-4 rounded-lg shadow-sm">
+                <h4 className="text-lg font-semibold text-indigo-800 mb-3">Transactions</h4>
+                <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                  <table className="min-w-full bg-white rounded-lg border border-gray-200">
+                    <thead className="sticky top-0 bg-indigo-600 text-white">
+                      <tr>
+                        <th className="p-3 text-left font-semibold w-1/4">Customer</th>
+                        <th className="p-3 text-left font-semibold w-1/6">Type</th>
+                        <th className="p-3 text-left font-semibold w-1/4">Amount</th>
+                        <th className="p-3 text-left font-semibold w-1/3">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyReport.transactions.map((t, index) => (
+                        <tr key={t._id} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                          <td className="p-3 whitespace-normal">{t.customerId?.name || 'Customer'}</td>
+                          <td className="p-3 whitespace-normal">{t.transactionType || ''}</td>
+                          <td className="p-3 whitespace-normal">
+                            {formatCurrency(t.transactionType === 'payable' ? t.payable : t.receivable)}
+                          </td>
+                          <td className="p-3 whitespace-normal">{t.description || ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Backup Section */}
+             
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-4 mt-4">
+                {pdfUrl && (
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block bg-indigo-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-600 transition"
+                    aria-label="View PDF Report"
+                  >
+                    View PDF Report
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    setIsReportModalOpen(false);
+                    setDailyReport(null);
+                    setPdfUrl(null);
+                  
+                  }}
+                  className="inline-block bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition"
+                  aria-label="Close Modal"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-6 text-center">
+              <p className="text-gray-300">No transactions for this date.</p>
+              <button
+                onClick={() => {
+                  setIsReportModalOpen(false);
+                  setDailyReport(null);
+                  setPdfUrl(null);
+                
+                }}
+                className="mt-4 inline-block bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition"
+                aria-label="Close Modal"
+              >
+                Close
+              </button>
+            </div>
+          )}
+        </Modal>
+    </>
   );
 }

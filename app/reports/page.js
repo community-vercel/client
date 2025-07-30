@@ -15,6 +15,7 @@ export default function Reports() {
   const [error, setError] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
+  
   // Edit Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);

@@ -5,6 +5,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import UserTable from '../../components/UserTable';
 import UserForm from '../../components/UserForm';
+import { ToastContainer, toast } from 'react-toastify';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -57,18 +58,21 @@ export default function UserManagement() {
     }
   };
 
-  const handleDeleteUser = async (id) => {
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      fetchUsers();
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || 'Failed to delete user';
-      setError(errorMessage);
-    }
-  };
+const handleDeleteUser = async (id) => {
+  try {
+    const token = localStorage.getItem('token');
+    await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/users/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    fetchUsers(); // Refresh the user list
+    // Optionally show success message
+    toast.success('User deleted successfully', { position: 'top-right' });
+  } catch (err) {
+    const errorMessage = err.response?.data?.error || 'Failed to delete user';
+    setError(errorMessage);
+    toast.error(errorMessage, { position: 'top-right' });
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-10 px-4 sm:px-4 md:px-6 lg:p-6">
@@ -108,7 +112,7 @@ export default function UserManagement() {
             </motion.div>
           )}
         </AnimatePresence>
-
+<ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
         {/* <Toaster position="top-right" /> */}
       </div>
     </div>

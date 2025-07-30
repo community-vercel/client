@@ -7,15 +7,15 @@ export default function Modal({ isOpen, onClose, title, children }) {
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-90 flex items-center justify-center bg-black bg-opacity-50  overflow-y-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             transition={{ duration: 0.3 }}
-            className="bg-gray-800 bg-opacity-90 backdrop-blur-lg p-8 rounded-xl shadow-2xl w-full max-w-md"
+            className="bg-gray-800 bg-opacity-90 backdrop-blur-lg p-8 rounded-xl shadow-2xl w-full max-w-md overflow-y-auto max-h-[92vh]"
           >
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-white">{title}</h2>
               <button
                 onClick={onClose}

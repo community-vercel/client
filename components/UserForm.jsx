@@ -39,7 +39,7 @@ export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false
             name="username"
             value={formData.username}
             onChange={handleChange}
-            className="mt-1 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors"
+            className="mt-1 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors text-white"
             required
           />
         </div>
@@ -51,7 +51,7 @@ export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="mt-1 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors"
+              className="mt-1 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors text-white"
               required
             />
           </div>

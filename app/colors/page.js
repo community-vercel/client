@@ -390,7 +390,7 @@ export default function ManageColors() {
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                   className="mt-1 p-3 border border-gray-300 rounded-md w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-600 transition"
-                  required
+                  
                 />
               </div>
               <div className="flex space-x-2">

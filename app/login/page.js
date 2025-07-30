@@ -137,18 +137,10 @@ export default function AuthPage() {
                 ></path>
               </svg>
             ) : null}
-            {loading ? 'Processing...' : isLogin ? 'Login' : 'Register'}
+            {loading ? 'Processing...' : isLogin ? 'Login' :''}
           </button>
         </form>
-        <p className="text-center text-gray-300 mt-6">
-          {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
-          <button
-            onClick={handleToggle}
-            className="text-purple-400 hover:text-purple-300 font-semibold transition duration-200"
-          >
-            {isLogin ? 'Register' : 'Login'}
-          </button>
-        </p>
+      
       </motion.div>
     </div>
   );

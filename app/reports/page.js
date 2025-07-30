@@ -67,6 +67,8 @@ export default function Reports() {
     }
   };
 
+
+  
   const handleEdit = (transaction) => {
     setEditingTransaction(transaction);
     setFormData({

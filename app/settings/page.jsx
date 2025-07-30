@@ -6,22 +6,24 @@ import { getSettings, updateSettings } from '../../lib/api';
 import api from '../../lib/api';
 
 export default function Settings() {
-  // State declarations - organized by functionality
-  const [settings, setSettings] = useState({ 
-    siteName: '', 
-    phone: '', 
-    logo: '' 
+  // State declarations
+  const [settings, setSettings] = useState({
+    siteName: '',
+    phone: '',
+    logo: '',
+    openingBalance: '',
+    openingBalanceSet: false,
   });
-  
+
   // Logo upload states
   const [logoFile, setLogoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  
+
   // UI feedback states
   const [message, setMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Backup functionality states
   const [backups, setBackups] = useState([]);
   const [selectedBackup, setSelectedBackup] = useState('');
@@ -37,7 +39,15 @@ export default function Settings() {
   const fetchSettings = async () => {
     try {
       const { data } = await getSettings();
-      if (data) setSettings(data);
+      if (data) {
+        setSettings({
+          siteName: data.siteName || '',
+          phone: data.phone || '',
+          logo: data.logo || '',
+          openingBalance: data.openingBalance !== null ? data.openingBalance.toString() : '',
+          openingBalanceSet: data.openingBalanceSet || false,
+        });
+      }
     } catch (error) {
       console.error('Error fetching settings:', error);
       setError('Failed to fetch settings');
@@ -61,7 +71,6 @@ export default function Settings() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     setLogoFile(file);
-    
     if (file) {
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
@@ -73,24 +82,26 @@ export default function Settings() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      const data = { 
-        siteName: settings.siteName, 
-        phone: settings.phone 
+      const data = {
+        siteName: settings.siteName,
+        phone: settings.phone,
       };
-      
+
       if (logoFile) data.logo = logoFile;
-      
+      if (settings.openingBalance && !settings.openingBalanceSet) {
+        data.openingBalance = parseFloat(settings.openingBalance);
+      }
+
       await updateSettings(data);
       setMessage('Settings updated successfully!');
-      
+
       // Refresh settings and reset form
       await fetchSettings();
       setLogoFile(null);
       setPreviewUrl(null);
-      
-      // Clear message after 3 seconds
+
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage('Failed to update settings. Please try again.');
@@ -105,19 +116,18 @@ export default function Settings() {
     try {
       setBackupStatus(null);
       setIsLoading(true);
-      
+
       const response = await api.post('/backup/create');
-      setBackupStatus({ 
-        type: 'success', 
-        message: `Backup created: ${response.data.filename}` 
+      setBackupStatus({
+        type: 'success',
+        message: `Backup created: ${response.data.filename}`,
       });
-      
-      // Refresh backup list
+
       await fetchBackups();
     } catch (error) {
-      setBackupStatus({ 
-        type: 'error', 
-        message: error.response?.data?.message || 'Failed to create backup' 
+      setBackupStatus({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to create backup',
       });
       console.error('Backup error:', error);
     } finally {
@@ -127,33 +137,33 @@ export default function Settings() {
 
   const handleRestoreBackup = async () => {
     if (!selectedBackup) {
-      setBackupStatus({ 
-        type: 'error', 
-        message: 'Please select a backup to restore' 
+      setBackupStatus({
+        type: 'error',
+        message: 'Please select a backup to restore',
       });
       return;
     }
-    
+
     if (!confirm('Restoring a backup will overwrite the current database. Continue?')) {
       return;
     }
-    
+
     try {
       setBackupStatus(null);
       setIsLoading(true);
-      
-      const response = await api.post('/backup/restore', { 
-        filename: selectedBackup 
+
+      const response = await api.post('/backup/restore', {
+        filename: selectedBackup,
       });
-      
-      setBackupStatus({ 
-        type: 'success', 
-        message: response.data.message 
+
+      setBackupStatus({
+        type: 'success',
+        message: response.data.message,
       });
     } catch (error) {
-      setBackupStatus({ 
-        type: 'error', 
-        message: error.response?.data?.message || 'Failed to restore backup' 
+      setBackupStatus({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to restore backup',
       });
       console.error('Restore error:', error);
     } finally {
@@ -246,6 +256,24 @@ export default function Settings() {
             />
           </div>
 
+          {/* Opening Balance Input */}
+          <div>
+            <label htmlFor="openingBalance" className="block text-sm font-medium text-gray-700 mb-1">
+              Opening Balance {settings.openingBalanceSet && '(Set, cannot be changed)'}
+            </label>
+            <input
+              id="openingBalance"
+              type="number"
+              placeholder="Enter opening balance"
+              value={settings.openingBalance}
+              onChange={(e) => setSettings({ ...settings, openingBalance: e.target.value })}
+              disabled={settings.openingBalanceSet}
+              className={`w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-300 placeholder-gray-400 text-gray-800 ${
+                settings.openingBalanceSet ? 'cursor-not-allowed opacity-50' : ''
+              }`}
+            />
+          </div>
+
           {/* Logo Upload */}
           <div>
             <label htmlFor="logo" className="block text-sm font-medium text-gray-700 mb-1">
@@ -306,7 +334,7 @@ export default function Settings() {
         {/* Database Backup Section */}
         <div className="bg-indigo-50 p-4 rounded-lg shadow-sm border-t border-gray-200 pt-6">
           <h4 className="text-lg font-semibold text-indigo-800 mb-3">Database Backup</h4>
-          
+
           <div className="flex flex-col gap-4">
             {/* Create Backup Button */}
             <button
@@ -317,7 +345,7 @@ export default function Settings() {
             >
               {isLoading ? 'Creating...' : 'Create Backup'}
             </button>
-            
+
             {/* Restore Backup Section */}
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <select
@@ -329,13 +357,13 @@ export default function Settings() {
                 <option value="">Select a backup</option>
                 {backups.map((backup) => (
                   <option key={backup.filename} value={backup.filename}>
-                    {backup.filename} ({new Date(backup.createdAt).toLocaleString('en-US', { 
-                      timeZone: 'Asia/Karachi' 
+                    {backup.filename} ({new Date(backup.createdAt).toLocaleString('en-US', {
+                      timeZone: 'Asia/Karachi',
                     })})
                   </option>
                 ))}
               </select>
-              
+
               <button
                 onClick={handleRestoreBackup}
                 disabled={!selectedBackup || isLoading}
@@ -349,7 +377,7 @@ export default function Settings() {
                 {isLoading ? 'Restoring...' : 'Restore Backup'}
               </button>
             </div>
-            
+
             {/* Backup Status Message */}
             {backupStatus && (
               <motion.p

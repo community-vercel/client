@@ -9,6 +9,7 @@ import { formatCurrency } from '../utils/helpers';
 import Modal from '../../components/Modal';
 import Fuse from 'fuse.js';
 import { useRouter } from 'next/navigation';
+import Modal2 from '@/components/Modal2';
 function isTokenExpired(token) {
   try {
     const decoded = jwtDecode(token); // Note the capital D
@@ -841,18 +842,18 @@ export default function Dashboard() {
       </div>
 
 
-      <Modal
-        isOpen={isReportModalOpen}
-        onClose={() => {
-          setIsReportModalOpen(false);
-          setDailyReport(null);
-          setPdfUrl(null);
-
-        }}
-        title={`${storeName} - Daily Report - ${reportDate}`}
-        aria-label="Daily Report Modal"
-        className="max-w-8xl w-full mx-8 py-12"
-      >
+  <Modal2
+  isOpen={isReportModalOpen}
+  onClose={() => {
+    setIsReportModalOpen(false);
+    setDailyReport(null);
+    setPdfUrl(null);
+    
+  }}
+  title={`${storeName} - Daily Report - ${reportDate}`}
+  aria-label="Daily Report Modal"
+className="max-w-[1200px] w-full"
+>
         {dailyReport ? (
           <div className="space-y-2 p-2">
             {/* Summary Section */}
@@ -953,7 +954,7 @@ export default function Dashboard() {
             </button>
           </div>
         )}
-      </Modal>
+      </Modal2>
     </>
   );
 }

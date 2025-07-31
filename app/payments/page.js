@@ -620,15 +620,22 @@ export default function Transactions() {
                   </motion.div>
                 )}
               </AnimatePresence>
-              <input
-                type="number"
-                placeholder="Total Amount"
-                value={formData.totalAmount}
-                onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-                required
-                aria-label="Total Amount"
-              />
+            <input
+  type="number"
+  placeholder="Total Amount"
+  value={formData.totalAmount}
+  onChange={(e) => {
+    const totalAmount = e.target.value;
+    setFormData({
+      ...formData,
+      totalAmount,
+      [formData.transactionType === 'payable' ? 'payable' : 'receivable']: totalAmount,
+    });
+  }}
+  className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+  required
+  aria-label="Total Amount"
+/>
               <input
                 type="number"
                 placeholder={formData.transactionType === 'payable' ? 'Amount Payable' : 'Amount Receivable'}
@@ -649,14 +656,12 @@ export default function Transactions() {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-                required
                 aria-label="Transaction Description"
               />
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-                required
                 aria-label="Transaction Category"
               >
                 <option value="">Select Category</option>
@@ -680,23 +685,28 @@ export default function Transactions() {
                   </option>
                 ))}
               </select>
-              <input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-                aria-label="Transaction Date"
-                max={today}
-                required
-              />
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-                aria-label="Due Date"
-              />
-              <label className="flex items-center text-gray-200">
+<input
+  type="date" // Changed from datetime-local to date
+  value={formData.date}
+  onChange={(e) => {
+    setFormData({ ...formData, date: e.target.value });
+  }}
+  className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+  aria-label="Transaction Date"
+  max={new Date().toISOString().split('T')[0]} // Restrict to today or earlier
+  required
+/>
+
+
+{/* <input
+  type="datetime-local"
+  value={formData.dueDate}
+  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+  className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+  aria-label="Due Date"
+/> */}
+
+              {/* <label className="flex items-center text-gray-200">
                 <input
                   type="checkbox"
                   checked={formData.isRecurring}
@@ -705,7 +715,7 @@ export default function Transactions() {
                   aria-label="Recurring Transaction"
                 />
                 Recurring Transaction
-              </label>
+              </label> */}
               <button
                 type="submit"
                 className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"

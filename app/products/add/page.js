@@ -343,11 +343,17 @@ const handleSubmit = async (e) => {
           </div>
           <div className="flex items-center space-x-4">
             <Link
-              href="/products/add"
+              href="/products"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
             >
-              Add Items
+            Manage Items
             </Link>
+                <Link
+                          href="/products/items"
+                          className="bg-green-500 px-2 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
+                        >
+                      Manage Quantity
+                        </Link>
             <Link
               href="/product"
               className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"

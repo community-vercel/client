@@ -223,95 +223,185 @@ export default function TransactionTable({ filters, onEdit, onDelete, refresh })
 
       {/* Table for md and larger screens */}
       {!loading && (
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full bg-opacity-50 rounded-lg table-fixed text-sm">
-            <thead className="bg-green-800 text-white sticky top-0 z-10">
-              <tr>
-                {['transactionType', 'customerId', 'totalAmount', 'payable', 'receivable', 'description', 'category', 'date'].map((key) => (
-                  <th
-                    key={key}
-                    className="p-2 text-left cursor-pointer hover:bg-indigo-700 transition-all select-none text-xs"
-                    onClick={() => handleSort(key)}
-                  >
-                    <div className="flex items-center capitalize">
-                      {key === 'customerId' ? 'Customer' : key === 'transactionType' ? 'Type' : key}
-                      {renderSortIcon(key)}
-                    </div>
-                  </th>
-                ))}
-                <th className="p-2 text-left text-xs">
-                  <Image size={14} className="inline mr-1" />
-                  Image
-                </th>
-                {role === 'admin' && (
-                  <th className="p-2 text-left text-xs">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedTransactions.map((transaction, index) => (
-                <motion.tr
-                  key={transaction._id}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="border-t border-gray-700 text-white hover:bg-gray-800 hover:bg-opacity-30 transition-colors"
+<div className="hidden md:block overflow-x-auto">
+  <table className="w-full bg-opacity-50 rounded-lg table-fixed text-sm">
+    <thead className="bg-green-800 text-white sticky top-0 z-10">
+      <tr>
+        {['transactionType', 'customerId', 'totalAmount', 'payable', 'receivable', 'description', 'category', 'date'].map((key) => (
+          <th
+            key={key}
+            className={`p-2 text-left cursor-pointer hover:bg-indigo-700 transition-all select-none text-xs ${
+              key === 'transactionType' ? 'w-[80px]' : // Shrink type column
+              key === 'category' ? 'w-[80px]' : // Shrink category column
+              key === 'totalAmount' ? 'w-[140px]' : // Ensure amount displays fully
+              key === 'date' ? 'w-[100px]' : // Constrain date column width
+              key==='receivable' ? 'w-[140px]' : // Ensure receivable displays fully
+               key==='payable' ? 'w-[140px]' :
+              ''}`}
+            onClick={() => handleSort(key)}
+          >
+            <div className="flex items-center capitalize">
+              {key === 'customerId' ? 'Customer' : key === 'transactionType' ? 'Type' : key}
+              {renderSortIcon(key)}
+            </div>
+          </th>
+        ))}
+        {role === 'admin' && (
+          <th className="p-2 text-left text-xs w-[90px]">Actions</th> 
+        )}
+      </tr>
+    </thead>
+    <tbody>
+      {sortedTransactions.map((transaction, index) => (
+        <motion.tr
+          key={transaction._id}
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.05 }}
+          className="border-t border-gray-700 text-white hover:bg-gray-800 hover:bg-opacity-30 transition-colors"
+        >
+          <td className="p-2 truncate w-[80px]">
+            <span className={`px-2 py-1 rounded text-xs font-medium ${
+              transaction.transactionType === 'payable' 
+                ? 'bg-red-100 text-red-800' 
+                : 'bg-green-100 text-green-800'
+            }`}>
+              {transaction.transactionType === 'payable' ? 'Debit' : 'Credit'}
+            </span>
+          </td>
+          <td className="p-2 truncate">{transaction.customerId?.name || 'N/A'}</td>
+          <td
+            className={`p-2 font-semibold w-[120px] ${
+              transaction.transactionType === 'payable' ? 'text-red-400' : 'text-green-400'
+            }`}
+          >
+            {formatCurrency(transaction.totalAmount?.toFixed(2) || 0)}
+          </td>
+          <td className="p-2 truncate">{formatCurrency(transaction.payable?.toFixed(2) || 0)}</td>
+          <td className="p-2 truncate">{formatCurrency(transaction.receivable?.toFixed(2) || 0)}</td>
+          <td className="p-0 truncate max-w-[80px]" title={transaction.description}>
+            {transaction.description || '—'}
+          </td>
+          <td className="p-2 truncate max-w-[80px] overflow-hidden" title={transaction.category}>
+            {transaction.category || '—'}
+          </td>
+          <td className="p-2 truncate w-[100px]">{new Date(transaction.date).toLocaleDateString()}</td> {/* Added w-[100px] */}
+          {role === 'admin' && (
+            <td className="p-0 w-[80px]"> {/* Reduced width from 100px to 80px */}
+              <div className="flex gap-1">
+                <motion.button
+                  onClick={() => onEdit(transaction)}
+                  className="text-indigo-400 hover:text-indigo-300 text-xs"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <td className="p-2 truncate">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      transaction.transactionType === 'payable' 
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {transaction.transactionType === 'payable' ? 'Debit' : 'Credit'}
-                    </span>
-                  </td>
-                  <td className="p-0 truncate">{transaction.customerId?.name || 'N/A'}</td>
-                  <td
-                    className={`p-2 font-semibold truncate ${
-                      transaction.transactionType === 'payable' ? 'text-red-400' : 'text-green-400'
-                    }`}
-                  >
-                    {formatCurrency(transaction.totalAmount?.toFixed(2) || 0)}
-                  </td>
-                  <td className="p-2 truncate">{formatCurrency(transaction.payable?.toFixed(2) || 0)}</td>
-                  <td className="p-2 truncate">{formatCurrency(transaction.receivable?.toFixed(2) || 0)}</td>
+                  Edit
+                </motion.button>
+                <motion.button
+                  onClick={() => onDelete(transaction._id)}
+                  className="text-red-400 hover:text-red-300 text-xs"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Delete
+                </motion.button>
+              </div>
+            </td>
+          )}
+        </motion.tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+//         <div className="hidden md:block overflow-x-auto">
+//           <table className="w-full bg-opacity-50 rounded-lg table-fixed text-sm">
+//             <thead className="bg-green-800 text-white sticky top-0 z-10">
+//               <tr>
+//                 {['transactionType', 'customerId', 'totalAmount', 'payable', 'receivable', 'description', 'category', 'date'].map((key) => (
+//                   <th
+//                     key={key}
+//                     className="p-2 text-left cursor-pointer hover:bg-indigo-700 transition-all select-none text-xs"
+//                     onClick={() => handleSort(key)}
+//                   >
+//                     <div className="flex items-center capitalize">
+//                       {key === 'customerId' ? 'Customer' : key === 'transactionType' ? 'Type' : key}
+//                       {renderSortIcon(key)}
+//                     </div>
+//                   </th>
+//                 ))}
+//                 {/* <th className="p-2 text-left text-xs">
+//                   <Image size={14} className="inline mr-1" />
+//                   Image
+//                 </th> */}
+//                 {role === 'admin' && (
+//                   <th className="p-2 text-left text-xs">Actions</th>
+//                 )}
+//               </tr>
+//             </thead>
+//             <tbody>
+//               {sortedTransactions.map((transaction, index) => (
+//                 <motion.tr
+//                   key={transaction._id}
+//                   initial={{ opacity: 0, y: 5 }}
+//                   animate={{ opacity: 1, y: 0 }}
+//                   transition={{ delay: index * 0.05 }}
+//                   className="border-t border-gray-700 text-white hover:bg-gray-800 hover:bg-opacity-30 transition-colors"
+//                 >
+//                   <td className="p-2 truncate">
+//                     <span className={`px-2 py-1 rounded text-xs font-medium ${
+//                       transaction.transactionType === 'payable' 
+//                         ? 'bg-red-100 text-red-800' 
+//                         : 'bg-green-100 text-green-800'
+//                     }`}>
+//                       {transaction.transactionType === 'payable' ? 'Debit' : 'Credit'}
+//                     </span>
+//                   </td>
+//                   <td className="p-0 truncate">{transaction.customerId?.name || 'N/A'}</td>
+//                   <td
+//                     className={`p-2 font-semibold truncate ${
+//                       transaction.transactionType === 'payable' ? 'text-red-400' : 'text-green-400'
+//                     }`}
+//                   >
+//                     {formatCurrency(transaction.totalAmount?.toFixed(2) || 0)}
+//                   </td>
+//                   <td className="p-2 truncate">{formatCurrency(transaction.payable?.toFixed(2) || 0)}</td>
+//                   <td className="p-2 truncate">{formatCurrency(transaction.receivable?.toFixed(2) || 0)}</td>
              
-                  <td className="p-2 truncate max-w-[120px]" title={transaction.description}>
-                    {transaction.description || '—'}
-                  </td>
-                  <td className="p-2 truncate">{transaction.category || '—'}</td>
-                  <td className="p-2 truncate">{new Date(transaction.date).toLocaleDateString()}</td>
-                  <td className="p-2">
-                    {renderImageActions(transaction)}
-                  </td>
-                  {role === 'admin' && (
-                    <td className="p-2">
-                      <div className="flex gap-1">
-                        <motion.button
-                          onClick={() => onEdit(transaction)}
-                          className="text-indigo-400 hover:text-indigo-300 text-xs"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          Edit
-                        </motion.button>
-                        <motion.button
-                          onClick={() => onDelete(transaction._id)}
-                          className="text-red-400 hover:text-red-300 text-xs"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          Delete
-                        </motion.button>
-                      </div>
-                    </td>
-                  )}
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+//                   <td className="p-2 truncate max-w-[120px]" title={transaction.description}>
+//                     {transaction.description || '—'}
+//                   </td>
+// <td className="p-2 max-w-[100px] truncate">{transaction.category || '—'}</td>
+//                   <td className="p-0 truncate">{new Date(transaction.date).toLocaleDateString()}</td>
+//                   {/* <td className="p-2">
+//                     {renderImageActions(transaction)}
+//                   </td> */}
+//                   {role === 'admin' && (
+//                     <td className="p-2">
+//                       <div className="flex gap-1">
+//                         <motion.button
+//                           onClick={() => onEdit(transaction)}
+//                           className="text-indigo-400 hover:text-indigo-300 text-xs"
+//                           whileHover={{ scale: 1.05 }}
+//                           whileTap={{ scale: 0.95 }}
+//                         >
+//                           Edit
+//                         </motion.button>
+//                         <motion.button
+//                           onClick={() => onDelete(transaction._id)}
+//                           className="text-red-400 hover:text-red-300 text-xs"
+//                           whileHover={{ scale: 1.05 }}
+//                           whileTap={{ scale: 0.95 }}
+//                         >
+//                           Delete
+//                         </motion.button>
+//                       </div>
+//                     </td>
+//                   )}
+//                 </motion.tr>
+//               ))}
+//             </tbody>
+//           </table>
+//         </div>
       )}
 
       {/* Card layout for sm screens */}
@@ -377,10 +467,10 @@ export default function TransactionTable({ filters, onEdit, onDelete, refresh })
               )}
               
               <div className="flex justify-between items-center mt-3 pt-2 border-t">
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-600 text-sm">Image:</span>
                   {renderImageActions(transaction)}
-                </div>
+                </div> */}
                 
                 {role === 'admin' && (
                   <div className="flex gap-3">

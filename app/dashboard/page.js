@@ -10,6 +10,8 @@ import Modal from '../../components/Modal';
 import Fuse from 'fuse.js';
 import { useRouter } from 'next/navigation';
 import Modal2 from '@/components/Modal2';
+import ReactDOM from 'react-dom';
+
 function isTokenExpired(token) {
   try {
     const decoded = jwtDecode(token); // Note the capital D
@@ -25,7 +27,14 @@ const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 };
-
+const DropdownPortal = ({ children, isOpen }) => {
+  if (!isOpen) return null;
+  
+  return ReactDOM.createPortal(
+    children,
+    document.body
+  );
+};
 const errorVariants = {
   hidden: { opacity: 0, scale: 0.95 },
   visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } },
@@ -43,7 +52,6 @@ export default function Dashboard() {
     openingBalance: 0,
     alerts: [],
   });
-  const [filters, setFilters] = useState({ startDate: '', endDate: '', category: '' });
   const [customers, setCustomers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
@@ -73,6 +81,81 @@ export default function Dashboard() {
   const [role, setRole] = useState(null);
   const today = new Date().toISOString().split('T')[0];
 
+  const [filters, setFilters] = useState({
+    startDate: '',
+    endDate: '',
+    category: '',
+    customerId: '', // Added customerId
+  }); 
+  
+  
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [customerSearchResults, setCustomerSearchResults] = useState([]);
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const customerInputRef = useRef(null);
+  
+  // Initialize Fuse.js for customer search
+  const customerFuse = new Fuse(customers, {
+    keys: ['name'],
+    threshold: 0.3,
+    includeScore: true,
+  });
+  
+  // Handle customer search input change
+  const handleCustomerSearchChange = (e) => {
+    const value = e.target.value;
+    setCustomerSearchTerm(value);
+  
+    if (value.trim()) {
+      const results = customerFuse.search(value).map((result) => result.item);
+      setCustomerSearchResults(results);
+      setIsCustomerDropdownOpen(true);
+    } else {
+      setCustomerSearchResults(customers); // Show all customers when input is empty
+      setIsCustomerDropdownOpen(true);
+      setFilters({ ...filters, customerId: '' }); // Clear customer filter
+    }
+  };
+  
+  // Handle customer selection for filter
+  const handleCustomerFilterSelect = (customer) => {
+    setFilters({ ...filters, customerId: customer._id });
+    setCustomerSearchTerm(customer.name || 'All Customers');
+    setIsCustomerDropdownOpen(false);
+  };
+  
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (customerInputRef.current && !customerInputRef.current.contains(event.target)) {
+        setIsCustomerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  // Initialize search term based on selected customer
+  useEffect(() => {
+    if (filters.customerId) {
+      const selectedCustomer = customers.find((c) => c._id === filters.customerId);
+      if (selectedCustomer) {
+        setCustomerSearchTerm(selectedCustomer.name);
+      }
+    } else {
+      setCustomerSearchTerm('All Customers');
+    }
+  }, [filters.customerId, customers]);
+  
+  // Open dropdown on input focus
+  const handleInputFocus = () => {
+    setIsCustomerDropdownOpen(true);
+    if (!customerSearchTerm.trim()) {
+      setCustomerSearchResults(customers); // Show all customers when focused and input is empty
+    }
+  };
+  
+
   // Initialize user ID and role from localStorage
   useEffect(() => {
     const id = localStorage.getItem('userid');
@@ -86,7 +169,7 @@ export default function Dashboard() {
     if (userid) setFormData((prev) => ({ ...prev, user: userid }));
   }, [userid]);
 
-  
+
   // Fetch dashboard data, customers, and categories
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -442,48 +525,106 @@ export default function Dashboard() {
           </motion.div>
 
           {/* Filters */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="mb-8 bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
-          >
-            <h3 className="text-lg font-semibold text-white mb-4">Filter Transactions</h3>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="date"
-                name="startDate"
-                value={filters.startDate}
-                onChange={handleFilterChange}
-                max={today}
-                className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                aria-label="Start Date"
-              />
-              <input
-                type="date"
-                name="endDate"
-                value={filters.endDate}
-                onChange={handleFilterChange}
-                max={today}
-                className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                aria-label="End Date"
-              />
-              <select
-                name="category"
-                value={filters.category}
-                onChange={handleFilterChange}
-                className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                aria-label="Category Filter"
-              >
-                <option value="">All Categories</option>
-                {categories.map((cat, index) => (
-                  <option key={index} value={cat.name}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </motion.div>
+    <motion.div
+   variants={containerVariants}
+   className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4 overflow-visible" // Added overflow-visible
+ >
+   <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+     <input
+       type="date"
+       value={filters.startDate}
+       onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+       className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+       aria-label="Start Date"
+       max={today}
+     />
+     <input
+       type="date"
+       value={filters.endDate}
+       onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+       className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+       aria-label="End Date"
+       max={today}
+     />
+     <select
+       value={filters.category}
+       onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+       className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+       aria-label="Category Filter"
+     >
+       <option value="">All Categories</option>
+       {categories?.map((cat, index) => (
+         <option key={index} value={cat.name}>
+           {cat.name}
+         </option>
+       ))}
+     </select>
+  <div className="relative w-full sm:w-auto" ref={customerInputRef}>
+   <input
+     type="text"
+     placeholder="Search customers..."
+     value={customerSearchTerm}
+     onChange={handleCustomerSearchChange}
+     onFocus={handleInputFocus}
+     className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition w-full pr-10"
+     aria-label="Customer Filter"
+   />
+   {customerSearchTerm && (
+     <button
+       type="button"
+       onClick={() => {
+         setCustomerSearchTerm('');
+         setFilters({ ...filters, customerId: '' });
+         setCustomerSearchResults(customers);
+         setIsCustomerDropdownOpen(true);
+       }}
+       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+       aria-label="Clear customer search"
+     >
+       ✕
+     </button>
+   )}
+   {/* Dropdown for Search Results - FIXED Z-INDEX */}
+   <AnimatePresence>
+     {isCustomerDropdownOpen && (
+ 
+       <DropdownPortal isOpen={isCustomerDropdownOpen}>
+   <motion.div
+     initial={{ opacity: 0, y: -10 }}
+     animate={{ opacity: 1, y: 0 }}
+     exit={{ opacity: 0, y: -10 }}
+     className="fixed bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+     style={{
+       position: 'fixed',
+       top: customerInputRef.current?.getBoundingClientRect().bottom + window.scrollY + 4 || 0,
+       left: customerInputRef.current?.getBoundingClientRect().left + window.scrollX || 0,
+       width: customerInputRef.current?.offsetWidth || 'auto',
+       zIndex: 9999
+     }}
+   >
+     <div
+       className="px-4 py-2 text-white hover:bg-indigo-600 cursor-pointer transition-colors"
+       onClick={() => handleCustomerFilterSelect({ _id: '', name: 'All Customers' })}
+     >
+       All Customers
+     </div>
+     {customerSearchResults.map((customer) => (
+       <div
+         key={customer._id}
+         className="px-4 py-2 text-white hover:bg-indigo-600 cursor-pointer transition-colors"
+         onClick={() => handleCustomerFilterSelect(customer)}
+       >
+         {customer.name}
+       </div>
+     ))}
+   </motion.div>
+ </DropdownPortal>
+     )}
+   </AnimatePresence>
+ </div>
+   </div>
+
+ </motion.div>
 
           {/* Error Message */}
           <AnimatePresence>

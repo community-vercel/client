@@ -8,13 +8,21 @@ import SummaryDashboard from '../../components/SummaryDashboard';
 import api from '../../lib/api';
 import { formatCurrency, downloadCSV } from '../utils/helpers';
 import Fuse from 'fuse.js';
+import ReactDOM from 'react-dom';
 
 // Animation variants for consistent transitions
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 };
-
+const DropdownPortal = ({ children, isOpen }) => {
+  if (!isOpen) return null;
+  
+  return ReactDOM.createPortal(
+    children,
+    document.body
+  );
+};
 export const PAYMENT_METHODS = ['Credit Card', 'Debit Card', 'Bank Transfer', 'Cash', 'Other'];
 const errorVariants = {
   hidden: { opacity: 0, scale: 0.95 },
@@ -42,8 +50,81 @@ export default function Transactions() {
     image: null,
     user: null,
   });
-  const [filters, setFilters] = useState({ startDate: '', endDate: '', category: '' });
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const [filters, setFilters] = useState({
+  startDate: '',
+  endDate: '',
+  category: '',
+  customerId: '', // Added customerId
+}); 
+
+
+const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+const [customerSearchResults, setCustomerSearchResults] = useState([]);
+const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+const customerInputRef = useRef(null);
+
+// Initialize Fuse.js for customer search
+const customerFuse = new Fuse(customers, {
+  keys: ['name'],
+  threshold: 0.3,
+  includeScore: true,
+});
+
+// Handle customer search input change
+const handleCustomerSearchChange = (e) => {
+  const value = e.target.value;
+  setCustomerSearchTerm(value);
+
+  if (value.trim()) {
+    const results = customerFuse.search(value).map((result) => result.item);
+    setCustomerSearchResults(results);
+    setIsCustomerDropdownOpen(true);
+  } else {
+    setCustomerSearchResults(customers); // Show all customers when input is empty
+    setIsCustomerDropdownOpen(true);
+    setFilters({ ...filters, customerId: '' }); // Clear customer filter
+  }
+};
+
+// Handle customer selection for filter
+const handleCustomerFilterSelect = (customer) => {
+  setFilters({ ...filters, customerId: customer._id });
+  setCustomerSearchTerm(customer.name || 'All Customers');
+  setIsCustomerDropdownOpen(false);
+};
+
+// Handle click outside to close dropdown
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (customerInputRef.current && !customerInputRef.current.contains(event.target)) {
+      setIsCustomerDropdownOpen(false);
+    }
+  };
+  document.addEventListener('mousedown', handleClickOutside);
+  return () => document.removeEventListener('mousedown', handleClickOutside);
+}, []);
+
+// Initialize search term based on selected customer
+useEffect(() => {
+  if (filters.customerId) {
+    const selectedCustomer = customers.find((c) => c._id === filters.customerId);
+    if (selectedCustomer) {
+      setCustomerSearchTerm(selectedCustomer.name);
+    }
+  } else {
+    setCustomerSearchTerm('All Customers');
+  }
+}, [filters.customerId, customers]);
+
+// Open dropdown on input focus
+const handleInputFocus = () => {
+  setIsCustomerDropdownOpen(true);
+  if (!customerSearchTerm.trim()) {
+    setCustomerSearchResults(customers); // Show all customers when focused and input is empty
+  }
+};
+
+const [isModalOpen, setIsModalOpen] = useState(false);
   const [entryMode, setEntryMode] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -241,9 +322,10 @@ export default function Transactions() {
   // Export transactions to CSV
   const handleExport = async () => {
     try {
-      const response = await api.get(
-        `/transactions?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}`
-      );
+        const response = await api.get(
+      `/transactions/export?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}&customerId=${filters.customerId}`,
+      { responseType: 'blob' }
+    );
       const transactions = response.data.transactions;
       const csvData = transactions.map((t) => ({
         Date: t.date,
@@ -347,58 +429,121 @@ export default function Transactions() {
         )}
 
         {/* Filters and Actions */}
-        <motion.div
-          variants={containerVariants}
-          className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4"
-        >
-          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-              aria-label="Start Date"
-              max={today}
-            />
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-              aria-label="End Date"
-              max={today}
-            />
-            <select
-              value={filters.category}
-              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-              aria-label="Category Filter"
-            >
-              <option value="">All Categories</option>
-              {CATEGORIES.map((cat, index) => (
-                <option key={index} value={cat.name}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-4">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"
-              aria-label="Add Transaction"
-            >
-              Add Transaction
-            </button>
-            <button
-              onClick={handleExport}
-              className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
-              aria-label="Export to CSV"
-            >
-              Export CSV
-            </button>
-          </div>
-        </motion.div>
+      <motion.div
+  variants={containerVariants}
+  className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4 overflow-visible" // Added overflow-visible
+>
+  <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+    <input
+      type="date"
+      value={filters.startDate}
+      onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+      className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+      aria-label="Start Date"
+      max={today}
+    />
+    <input
+      type="date"
+      value={filters.endDate}
+      onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+      className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+      aria-label="End Date"
+      max={today}
+    />
+    <select
+      value={filters.category}
+      onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+      className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+      aria-label="Category Filter"
+    >
+      <option value="">All Categories</option>
+      {CATEGORIES?.map((cat, index) => (
+        <option key={index} value={cat.name}>
+          {cat.name}
+        </option>
+      ))}
+    </select>
+ <div className="relative w-full sm:w-auto" ref={customerInputRef}>
+  <input
+    type="text"
+    placeholder="Search customers..."
+    value={customerSearchTerm}
+    onChange={handleCustomerSearchChange}
+    onFocus={handleInputFocus}
+    className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition w-full pr-10"
+    aria-label="Customer Filter"
+  />
+  {customerSearchTerm && (
+    <button
+      type="button"
+      onClick={() => {
+        setCustomerSearchTerm('');
+        setFilters({ ...filters, customerId: '' });
+        setCustomerSearchResults(customers);
+        setIsCustomerDropdownOpen(true);
+      }}
+      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+      aria-label="Clear customer search"
+    >
+      ✕
+    </button>
+  )}
+  {/* Dropdown for Search Results - FIXED Z-INDEX */}
+  <AnimatePresence>
+    {isCustomerDropdownOpen && (
+
+      <DropdownPortal isOpen={isCustomerDropdownOpen}>
+  <motion.div
+    initial={{ opacity: 0, y: -10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    className="fixed bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+    style={{
+      position: 'fixed',
+      top: customerInputRef.current?.getBoundingClientRect().bottom + window.scrollY + 4 || 0,
+      left: customerInputRef.current?.getBoundingClientRect().left + window.scrollX || 0,
+      width: customerInputRef.current?.offsetWidth || 'auto',
+      zIndex: 9999
+    }}
+  >
+    <div
+      className="px-4 py-2 text-white hover:bg-indigo-600 cursor-pointer transition-colors"
+      onClick={() => handleCustomerFilterSelect({ _id: '', name: 'All Customers' })}
+    >
+      All Customers
+    </div>
+    {customerSearchResults.map((customer) => (
+      <div
+        key={customer._id}
+        className="px-4 py-2 text-white hover:bg-indigo-600 cursor-pointer transition-colors"
+        onClick={() => handleCustomerFilterSelect(customer)}
+      >
+        {customer.name}
+      </div>
+    ))}
+  </motion.div>
+</DropdownPortal>
+    )}
+  </AnimatePresence>
+</div>
+  </div>
+  <div className="flex gap-4">
+    <button
+      onClick={() => setIsModalOpen(true)}
+      className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"
+      aria-label="Add Transaction"
+    >
+      Add Transaction
+    </button>
+    <button
+      onClick={handleExport}
+      className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
+      aria-label="Export to CSV"
+    >
+      Export CSV
+    </button>
+  </div>
+</motion.div>
 
         {/* Loading State */}
         {loading && (
@@ -423,7 +568,11 @@ export default function Transactions() {
 
         {/* Recurring Suggestions */}
         {!loading && suggestions.length > 0 && (
-          <motion.div variants={containerVariants} className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl">
+<motion.div 
+  variants={containerVariants}
+  className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl relative"
+  style={{ zIndex: 1 }} // Lower z-index for table container
+>
             <h3 className="text-lg font-semibold text-white mb-4">Recurring Suggestions</h3>
             <ul className="space-y-3">
               {suggestions.map((s, index) => (
@@ -452,7 +601,9 @@ export default function Transactions() {
 
         {/* Transaction Table */}
         {!loading && (
-          <motion.div variants={containerVariants} className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl">
+          <motion.div variants={containerVariants}
+          className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl z-[10]" // Added z-[10]
+>
             <h3 className="text-lg font-semibold text-white mb-4">Recent Transactions</h3>
             <TransactionTable
               filters={filters}

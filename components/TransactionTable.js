@@ -34,9 +34,9 @@ export default function TransactionTable({ filters, onEdit, onDelete, refresh })
       setLoading(true);
       setError('');
       try {
-        const response = await api.get(
-          `/transactions?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}&page=${currentPage}&limit=${itemsPerPage}`
-        );
+         const response = await api.get(
+        `/transactions?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}&customerId=${filters.customerId}&page=${currentPage}&limit=${itemsPerPage}`
+      );
         setTransactions(response.data.transactions);
         setPagination(response.data.pagination);
       } catch (err) {

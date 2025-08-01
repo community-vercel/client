@@ -192,7 +192,7 @@ export default function ManageColors() {
                 <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
                   Color Palette Manager
                 </h2>
-                <p className="text-gray-600 text-lg">Organize and manage your brand's color system with precision</p>
+                <p className="text-gray-600 text-lg">Organize and manage your brands color system with precision</p>
               </div>
               <button
                 onClick={() => {

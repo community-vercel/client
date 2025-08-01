@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef,useMemo} from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Fuse from 'fuse.js';
@@ -203,12 +203,13 @@ export default function AddItem() {
     router.push('/auth/signin');
   };
 
-  const quickActions = [
-    { title: 'Manage Items', href: '/products', icon: <Package className="w-4 h-4" />, color: 'bg-emerald-500' },
-    { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-4 h-4" />, color: 'bg-blue-500' },
-    { title: 'Manage Product', href: '/product', icon: <Plus className="w-4 h-4" />, color: 'bg-purple-500' },
-    { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-4 h-4" />, color: 'bg-orange-500' },
-  ];
+const quickActions = useMemo(() => [
+  { title: 'Manage Items', href: '/products', icon: <Package className="w-5 h-5" />, color: 'bg-gradient-to-r from-emerald-500 to-emerald-600', description: 'View and edit products' },
+  { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-5 h-5" />, color: 'bg-gradient-to-r from-blue-500 to-blue-600', description: 'Update stock levels' },
+  { title: 'Manage Product', href: '/product', icon: <Plus className="w-5 h-5" />, color: 'bg-gradient-to-r from-purple-500 to-purple-600', description: 'Add new products' },
+  { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-5 h-5" />, color: 'bg-gradient-to-r from-orange-500 to-orange-600', description: 'Color management' },
+], []);
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-0 py-22">

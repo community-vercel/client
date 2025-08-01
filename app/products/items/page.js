@@ -15,7 +15,8 @@ const ItemsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const token = useMemo(() => localStorage.getItem('token'), []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
- 
+ const [updating, setUpdating] = useState(false);
+
   // Fetch items
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -40,29 +41,35 @@ const ItemsPage = () => {
   }, [fetchItems, token]);
  
   // Handle quantity update
-  const handleUpdateQuantity = async () => {
-    if (amount <= 0) {
-      toast.error('Amount must be greater than 0');
-      return;
-    }
-    try {
-      const response = await api.patch(
-        `/items/${selectedItem._id}/quantity`,
-        { operation, amount: parseInt(amount) },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setItems((prevItems) =>
-        prevItems.map((item) =>
-          item._id === selectedItem._id ? { ...item, quantity: response.data.data.quantity } : item
-        )
-      );
-      toast.success('Quantity updated successfully!');
-      closeModal();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update quantity');
-    }
-  };
- 
+const handleUpdateQuantity = async () => {
+  if (amount <= 0) {
+    toast.error('Amount must be greater than 0');
+    return;
+  }
+  setUpdating(true);
+  try {
+    const response = await api.patch(
+      `/items/${selectedItem._id}/quantity`,
+      { operation, amount: parseInt(amount) },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    setItems((prevItems) => {
+      const updatedItems = [...prevItems];
+      const index = updatedItems.findIndex((item) => item._id === selectedItem._id);
+      if (index !== -1) {
+        updatedItems[index] = { ...updatedItems[index], quantity: response.data.data.quantity };
+      }
+      return updatedItems;
+    });
+    toast.success('Quantity updated successfully!');
+    closeModal();
+  } catch (error) {
+    toast.error(error.response?.data?.message || 'Failed to update quantity');
+  } finally {
+    setUpdating(false);
+  }
+};
   // Modal handlers
   const openUpdateModal = useCallback((item) => {
     setSelectedItem(item);
@@ -87,12 +94,13 @@ const ItemsPage = () => {
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const lowStockItems = items.filter(item => item.quantity < 10).length;
  
-  const quickActions = [
-    { title: 'Manage Items', href: '/products', icon: <Package className="w-5 h-5" />, color: 'bg-gradient-to-r from-emerald-500 to-emerald-600', description: 'View and edit products' },
-    { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-5 h-5" />, color: 'bg-gradient-to-r from-blue-500 to-blue-600', description: 'Update stock levels' },
-    { title: 'Manage Product', href: '/product', icon: <Plus className="w-5 h-5" />, color: 'bg-gradient-to-r from-purple-500 to-purple-600', description: 'Add new products' },
-    { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-5 h-5" />, color: 'bg-gradient-to-r from-orange-500 to-orange-600', description: 'Color management' },
-  ];
+const quickActions = useMemo(() => [
+  { title: 'Manage Items', href: '/products', icon: <Package className="w-5 h-5" />, color: 'bg-gradient-to-r from-emerald-500 to-emerald-600', description: 'View and edit products' },
+  { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-5 h-5" />, color: 'bg-gradient-to-r from-blue-500 to-blue-600', description: 'Update stock levels' },
+  { title: 'Manage Product', href: '/product', icon: <Plus className="w-5 h-5" />, color: 'bg-gradient-to-r from-purple-500 to-purple-600', description: 'Add new products' },
+  { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-5 h-5" />, color: 'bg-gradient-to-r from-orange-500 to-orange-600', description: 'Color management' },
+], []);
+
 
   const getStockStatus = (quantity) => {
     if (quantity === 0) return { label: 'Out of Stock', color: 'bg-red-100 text-red-800', icon: '🔴' };
@@ -366,13 +374,18 @@ const ItemsPage = () => {
                   >
                     Cancel
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleUpdateQuantity}
-                    className="flex-1 px-4 py-3 text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
-                  >
-                    Update Stock
-                  </button>
+                 <button
+  type="button"
+  onClick={handleUpdateQuantity}
+  disabled={updating}
+  className={`flex-1 px-4 py-3 text-white rounded-xl font-medium shadow-lg transition-all duration-200 transform ${
+    updating
+      ? 'bg-indigo-300 cursor-not-allowed'
+      : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl hover:scale-105'
+  }`}
+>
+  {updating ? 'Updating...' : 'Update Stock'}
+</button>
                 </div>
               </div>
             </div>

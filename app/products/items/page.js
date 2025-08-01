@@ -61,6 +61,7 @@ const handleUpdateQuantity = async () => {
         : item
     ));
 
+    
     // Then make the API call
     await api.patch(
       `/items/${selectedItem._id}/quantity`,
@@ -82,6 +83,8 @@ const handleUpdateQuantity = async () => {
     setUpdating(false);
   }
 };
+
+
   // Modal handlers
   const openUpdateModal = useCallback((item) => {
     setSelectedItem(item);

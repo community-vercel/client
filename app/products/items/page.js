@@ -5,7 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import api from '@/lib/api';
 import Link from 'next/link';
 import { Package, BarChart3, Palette, Plus, Menu, X, Search, TrendingUp, Boxes, Archive } from 'lucide-react';
- 
+
 const ItemsPage = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,77 +13,84 @@ const ItemsPage = () => {
   const [operation, setOperation] = useState('add');
   const [amount, setAmount] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [limit] = useState(10); // Items per page
   const token = useMemo(() => localStorage.getItem('token'), []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
- const [updating, setUpdating] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
-  // Fetch items
-  const fetchItems = useCallback(async () => {
+  // Fetch items with pagination
+  const fetchItems = useCallback(async (page = 1) => {
     setLoading(true);
     try {
-      const response = await api.get('/items/quantity', {
+      const response = await api.get(`/items/quantity?page=${page}&limit=${limit}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setItems(response.data.data || []);
+      setTotalPages(response.data.pagination.totalPages || 1);
+      setTotalItems(response.data.pagination.totalItems || 0);
+      setCurrentPage(response.data.pagination.currentPage || 1);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to fetch items');
     } finally {
       setLoading(false);
     }
-  }, [token]);
- 
+  }, [token, limit]);
+
   useEffect(() => {
     if (token) {
-      fetchItems();
+      fetchItems(currentPage);
     } else {
       window.location.href = '/auth/signin';
     }
-  }, [fetchItems, token]);
- 
+  }, [fetchItems, token, currentPage]);
+
   // Handle quantity update
-const handleUpdateQuantity = async () => {
-  if (amount <= 0) {
-    toast.error('Amount must be greater than 0');
-    return;
-  }
-  
-  setUpdating(true);
-  try {
-    // Optimistic UI update - update the UI before the API responds
-    setItems(prevItems => prevItems.map(item => 
-      item._id === selectedItem._id 
-        ? { 
-            ...item, 
-            quantity: operation === 'add' 
-              ? item.quantity + parseInt(amount) 
-              : item.quantity - parseInt(amount) 
-          }
-        : item
-    ));
+  const handleUpdateQuantity = async () => {
+    if (amount <= 0) {
+      toast.error('Amount must be greater than 0');
+      return;
+    }
 
-    
-    // Then make the API call
-    await api.patch(
-      `/items/${selectedItem._id}/quantity`,
-      { operation, amount: parseInt(amount) },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    setUpdating(true);
+    try {
+      // Optimistic UI update
+      setItems((prevItems) =>
+        prevItems.map((item) =>
+          item._id === selectedItem._id
+            ? {
+                ...item,
+                quantity:
+                  operation === 'add'
+                    ? item.quantity + parseInt(amount)
+                    : item.quantity - parseInt(amount),
+              }
+            : item
+        )
+      );
 
-    toast.success('Quantity updated successfully!');
-    closeModal();
-  } catch (error) {
-    // Revert if the API call fails
-    setItems(prevItems => prevItems.map(item => 
-      item._id === selectedItem._id 
-        ? { ...item, quantity: selectedItem.quantity } 
-        : item
-    ));
-    toast.error(error.response?.data?.message || 'Failed to update quantity');
-  } finally {
-    setUpdating(false);
-  }
-};
+      await api.patch(
+        `/items/${selectedItem._id}/quantity`,
+        { operation, amount: parseInt(amount) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
+      toast.success('Quantity updated successfully!');
+      closeModal();
+    } catch (error) {
+      // Revert optimistic update
+      setItems((prevItems) =>
+        prevItems.map((item) =>
+          item._id === selectedItem._id ? { ...item, quantity: selectedItem.quantity } : item
+        )
+      );
+      toast.error(error.response?.data?.message || 'Failed to update quantity');
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   // Modal handlers
   const openUpdateModal = useCallback((item) => {
@@ -91,31 +98,59 @@ const handleUpdateQuantity = async () => {
     setOperation('add');
     setAmount('');
   }, []);
- 
+
   const closeModal = useCallback(() => {
     setSelectedItem(null);
     setAmount('');
     setOperation('add');
   }, []);
- 
+
   // Filtered items
   const filteredItems = useMemo(
-    () => items.filter((item) => item.productId?.name?.toLowerCase().includes(searchTerm.toLowerCase())),
+    () =>
+      items.filter((item) =>
+        item.productId?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
     [items, searchTerm]
   );
 
   // Calculate stats
-  const totalItems = items.length;
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-  const lowStockItems = items.filter(item => item.quantity < 10).length;
- 
-const quickActions = useMemo(() => [
-  { title: 'Manage Items', href: '/products', icon: <Package className="w-5 h-5" />, color: 'bg-gradient-to-r from-emerald-500 to-emerald-600', description: 'View and edit products' },
-  { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-5 h-5" />, color: 'bg-gradient-to-r from-blue-500 to-blue-600', description: 'Update stock levels' },
-  { title: 'Manage Product', href: '/product', icon: <Plus className="w-5 h-5" />, color: 'bg-gradient-to-r from-purple-500 to-purple-600', description: 'Add new products' },
-  { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-5 h-5" />, color: 'bg-gradient-to-r from-orange-500 to-orange-600', description: 'Color management' },
-], []);
+  const lowStockItems = items.filter((item) => item.quantity < 10).length;
 
+  const quickActions = useMemo(
+    () => [
+      {
+        title: 'Manage Items',
+        href: '/products',
+        icon: <Package className="w-5 h-5" />,
+        color: 'bg-gradient-to-r from-emerald-500 to-emerald-600',
+        description: 'View and edit products',
+      },
+      {
+        title: 'Manage Quantity',
+        href: '/products/items',
+        icon: <BarChart3 className="w-5 h-5" />,
+        color: 'bg-gradient-to-r from-blue-500 to-blue-600',
+        description: 'Update stock levels',
+      },
+      {
+        title: 'Manage Product',
+        href: '/product',
+        icon: <Plus className="w-5 h-5" />,
+        color: 'bg-gradient-to-r from-purple-500 to-purple-600',
+        description: 'Add new products',
+      },
+      {
+        title: 'Manage Colors',
+        href: '/colors',
+        icon: <Palette className="w-5 h-5" />,
+        color: 'bg-gradient-to-r from-orange-500 to-orange-600',
+        description: 'Color management',
+      },
+    ],
+    []
+  );
 
   const getStockStatus = (quantity) => {
     if (quantity === 0) return { label: 'Out of Stock', color: 'bg-red-100 text-red-800', icon: '🔴' };
@@ -123,11 +158,18 @@ const quickActions = useMemo(() => [
     if (quantity < 50) return { label: 'Medium Stock', color: 'bg-blue-100 text-blue-800', icon: '🔵' };
     return { label: 'In Stock', color: 'bg-green-100 text-green-800', icon: '🟢' };
   };
- 
+
+  // Pagination handler
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-22 px-4">
       <ToastContainer theme="colored" position="top-right" autoClose={3000} />
- 
+
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl rounded-2xl p-6 mb-6">
         <div className="flex justify-between items-center">
@@ -188,7 +230,7 @@ const quickActions = useMemo(() => [
           </div>
         </div>
       </div>
- 
+
       {/* Sidebar (Quick Actions) */}
       {isSidebarOpen && (
         <div className="mb-6 bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-xl p-6 transform transition-all duration-300 ease-out">
@@ -217,7 +259,7 @@ const quickActions = useMemo(() => [
           </div>
         </div>
       )}
- 
+
       {/* Main Content */}
       <main>
         <div className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-xl p-8">
@@ -238,7 +280,7 @@ const quickActions = useMemo(() => [
               <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400" />
             </div>
           </div>
- 
+
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="relative">
@@ -247,86 +289,151 @@ const quickActions = useMemo(() => [
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl shadow-sm border border-slate-200">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                  <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
-                    <tr>
-                      {['Product Name', 'Current Stock', 'Status', 'Actions'].map((header) => (
-                        <th
-                          key={header}
-                          className="px-6 py-4 text-left text-sm font-bold text-slate-700 uppercase tracking-wider"
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-slate-200">
-                    {filteredItems.length > 0 ? (
-                      filteredItems.map((item, index) => {
-                        const stockStatus = getStockStatus(item.quantity);
-                        return (
-                          <tr key={item._id} className={`hover:bg-slate-50 transition-colors duration-200 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center">
-                                <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
-                                  <Package className="w-5 h-5 text-white" />
-                                </div>
-                                <div className="ml-4">
-                                  <div className="text-lg font-bold text-slate-900">
-                                    {item.productId?.name || 'N/A'}
+            <>
+              <div className="overflow-hidden rounded-xl shadow-sm border border-slate-200">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-gradient-to-r from-slate-50 to-slate-100">
+                      <tr>
+                        {['Product Name', 'Current Stock', 'Status', 'Actions'].map((header) => (
+                          <th
+                            key={header}
+                            className="px-6 py-4 text-left text-sm font-bold text-slate-700 uppercase tracking-wider"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-slate-200">
+                      {filteredItems.length > 0 ? (
+                        filteredItems.map((item, index) => {
+                          const stockStatus = getStockStatus(item.quantity);
+                          return (
+                            <tr
+                              key={item._id}
+                              className={`hover:bg-slate-50 transition-colors duration-200 ${
+                                index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                              }`}
+                            >
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                                    <Package className="w-5 h-5 text-white" />
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-lg font-bold text-slate-900">
+                                      {item.productId?.name || 'N/A'}
+                                    </div>
                                   </div>
                                 </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-2xl font-bold text-slate-800">{item.quantity}</div>
+                                <div className="text-sm text-slate-500">units</div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span
+                                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${stockStatus.color}`}
+                                >
+                                  <span className="mr-2">{stockStatus.icon}</span>
+                                  {stockStatus.label}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <button
+                                  onClick={() => openUpdateModal(item)}
+                                  className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                                  aria-label={`Update quantity for ${item.productId?.name || 'item'}`}
+                                >
+                                  <BarChart3 className="w-4 h-4 mr-2" />
+                                  Update Stock
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan="4" className="px-6 py-12 text-center">
+                            <div className="flex flex-col items-center">
+                              <div className="bg-slate-100 rounded-full p-6 mb-4">
+                                <Package className="w-12 h-12 text-slate-400" />
                               </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-2xl font-bold text-slate-800">{item.quantity}</div>
-                              <div className="text-sm text-slate-500">units</div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${stockStatus.color}`}>
-                                <span className="mr-2">{stockStatus.icon}</span>
-                                {stockStatus.label}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4">
-                              <button
-                                onClick={() => openUpdateModal(item)}
-                                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                                aria-label={`Update quantity for ${item.productId?.name || 'item'}`}
-                              >
-                                <BarChart3 className="w-4 h-4 mr-2" />
-                                Update Stock
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan="4" className="px-6 py-12 text-center">
-                          <div className="flex flex-col items-center">
-                            <div className="bg-slate-100 rounded-full p-6 mb-4">
-                              <Package className="w-12 h-12 text-slate-400" />
+                              <h3 className="text-lg font-medium text-slate-900 mb-2">No items found</h3>
+                              <p className="text-slate-500">Try adjusting your search criteria</p>
                             </div>
-                            <h3 className="text-lg font-medium text-slate-900 mb-2">No items found</h3>
-                            <p className="text-slate-500">Try adjusting your search criteria</p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="mt-6 flex justify-between items-center">
+                  <div className="text-sm text-slate-600">
+                    Showing {(currentPage - 1) * limit + 1} to{' '}
+                    {Math.min(currentPage * limit, totalItems)} of {totalItems} items
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                        currentPage === 1
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    <div className="flex gap-1">
+                      {[...Array(totalPages)].map((_, index) => {
+                        const page = index + 1;
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                              currentPage === page
+                                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                                : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 ${
+                        currentPage === totalPages
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-md hover:shadow-lg'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
- 
+
       {/* Update Quantity Modal */}
       {selectedItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 scale-100">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
@@ -342,7 +449,7 @@ const quickActions = useMemo(() => [
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              
+
               <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 mb-6">
                 <div className="text-center">
                   <p className="text-sm text-slate-600 mb-1">Current Stock Level</p>
@@ -350,7 +457,7 @@ const quickActions = useMemo(() => [
                   <p className="text-sm text-slate-500">units available</p>
                 </div>
               </div>
-              
+
               <div className="space-y-6">
                 <div>
                   <label htmlFor="operation" className="block text-sm font-bold text-slate-700 mb-2">
@@ -389,18 +496,18 @@ const quickActions = useMemo(() => [
                   >
                     Cancel
                   </button>
-                 <button
-  type="button"
-  onClick={handleUpdateQuantity}
-  disabled={updating}
-  className={`flex-1 px-4 py-3 text-white rounded-xl font-medium shadow-lg transition-all duration-200 transform ${
-    updating
-      ? 'bg-indigo-300 cursor-not-allowed'
-      : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl hover:scale-105'
-  }`}
->
-  {updating ? 'Updating...' : 'Update Stock'}
-</button>
+                  <button
+                    type="button"
+                    onClick={handleUpdateQuantity}
+                    disabled={updating}
+                    className={`flex-1 px-4 py-3 text-white rounded-xl font-medium shadow-lg transition-all duration-200 transform ${
+                      updating
+                        ? 'bg-indigo-300 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl hover:scale-105'
+                    }`}
+                  >
+                    {updating ? 'Updating...' : 'Update Stock'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -410,5 +517,5 @@ const quickActions = useMemo(() => [
     </div>
   );
 };
- 
+
 export default ItemsPage;

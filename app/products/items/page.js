@@ -46,25 +46,37 @@ const handleUpdateQuantity = async () => {
     toast.error('Amount must be greater than 0');
     return;
   }
+  
   setUpdating(true);
   try {
-    const response = await api.patch(
+    // Optimistic UI update - update the UI before the API responds
+    setItems(prevItems => prevItems.map(item => 
+      item._id === selectedItem._id 
+        ? { 
+            ...item, 
+            quantity: operation === 'add' 
+              ? item.quantity + parseInt(amount) 
+              : item.quantity - parseInt(amount) 
+          }
+        : item
+    ));
+
+    // Then make the API call
+    await api.patch(
       `/items/${selectedItem._id}/quantity`,
       { operation, amount: parseInt(amount) },
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
-    setItems((prevItems) => {
-      const updatedItems = [...prevItems];
-      const index = updatedItems.findIndex((item) => item._id === selectedItem._id);
-      if (index !== -1) {
-        updatedItems[index] = { ...updatedItems[index], quantity: response.data.data.quantity };
-      }
-      return updatedItems;
-    });
     toast.success('Quantity updated successfully!');
     closeModal();
   } catch (error) {
+    // Revert if the API call fails
+    setItems(prevItems => prevItems.map(item => 
+      item._id === selectedItem._id 
+        ? { ...item, quantity: selectedItem.quantity } 
+        : item
+    ));
     toast.error(error.response?.data?.message || 'Failed to update quantity');
   } finally {
     setUpdating(false);

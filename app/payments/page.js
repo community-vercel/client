@@ -545,7 +545,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
   </div>
 </motion.div>
 
-        {/* Loading State */}
         {loading && (
           <div className="text-center py-10">
             <svg

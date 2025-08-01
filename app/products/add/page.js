@@ -215,42 +215,57 @@ export default function AddItem() {
       <ToastContainer theme="colored" position="top-right" />
 
       {/* Header */}
-      <header className="bg-indigo-600 text-white rounded-lg shadow p-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Package className="w-5 h-5" />
-            <div>
-              <h1 className="text-lg font-semibold">Inventory Dashboard</h1>
-              <p className="text-xs text-indigo-100">Manage your inventory</p>
+       <header className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl rounded-2xl p-6 mb-6">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-3 rounded-xl shadow-lg">
+                      <Package className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                        Inventory Dashboard
+                      </h1>
+                      <p className="text-slate-600 font-medium">Manage your stock efficiently</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    className="p-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    aria-label="Toggle sidebar"
+                  >
+                    {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                  </button>
+                </div>
+              </header>
+    
+          {/* Sidebar (Quick Actions) */}
+          {isSidebarOpen && (
+            <div className="mb-6 bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-xl p-6 transform transition-all duration-300 ease-out">
+              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <div className="w-2 h-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full"></div>
+                Quick Actions
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {quickActions.map((action, index) => (
+                  <Link
+                    key={index}
+                    href={action.href}
+                    className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    <div className={`${action.color} p-6 text-white`}>
+                      <div className="flex items-center justify-between mb-3">
+                        {action.icon}
+                        <div className="opacity-20 text-2xl">→</div>
+                      </div>
+                      <h3 className="font-bold text-lg mb-1">{action.title}</h3>
+                      <p className="text-sm opacity-90">{action.description}</p>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </Link>
+                ))}
+              </div>
             </div>
-          </div>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 rounded-lg hover:bg-indigo-700"
-          >
-            {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </header>
-
-      {/* Sidebar (Quick Actions) */}
-      {isSidebarOpen && (
-        <div className="mt-4 bg-white rounded-lg shadow p-4">
-          <h2 className="text-sm font-semibold text-gray-800 mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {quickActions.map((action, index) => (
-              <Link
-                key={index}
-                href={action.href}
-                className={`flex items-center space-x-2 p-3 rounded-lg ${action.color} text-white hover:opacity-90 text-xs`}
-              >
-                {action.icon}
-                <span>{action.title}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+          )}
 
       {/* Main Form */}
       <main className="mt-4">

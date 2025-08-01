@@ -16,7 +16,7 @@ const ItemsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const [limit] = useState(10); // Items per page
+  const [limit] = useState(100); // Items per page
   const token = useMemo(() => localStorage.getItem('token'), []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [updating, setUpdating] = useState(false);

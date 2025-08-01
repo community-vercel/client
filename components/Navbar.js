@@ -3,18 +3,28 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Menu, X, LogOut } from 'lucide-react';
+import { Menu, X, LogOut, Sparkles, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getSettings } from '../lib/api';
 
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
-  const [settings, setSettings] = useState(null); // Initialize as null
-  const [isLoading, setIsLoading] = useState(true); // Loading state
+  const [settings, setSettings] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     fetchSettings();
+    
+    // Handle scroll effect
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const fetchSettings = async () => {
@@ -26,7 +36,7 @@ export default function Navbar() {
     } catch (error) {
       console.error('Failed to fetch settings:', error);
     } finally {
-      setIsLoading(false); // Set loading to false after API call
+      setIsLoading(false);
     }
   };
 
@@ -46,60 +56,234 @@ export default function Navbar() {
 
   // Navigation links
   const navLinks = [
-    { href: '/dashboard', label: 'Dashboard' },
-    { href: '/receipts', label: 'Receipts' },
-    { href: '/payments', label: 'Payments' },
-    { href: '/reports', label: 'Reports' },
+    { href: '/dashboard', label: 'Dashboard', color: 'from-blue-400 to-cyan-400' },
+    { href: '/payments', label: 'Records', color: 'from-purple-400 to-pink-400' },
+    { href: '/reports', label: 'Reports', color: 'from-orange-400 to-red-400' },
   ];
 
+  const logoVariants = {
+    animate: {
+      rotate: [0, 5, -5, 0],
+      scale: [1, 1.05, 1],
+      transition: {
+        duration: 3,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    }
+  };
+
+  const sparkleVariants = {
+    animate: {
+      scale: [1, 1.3, 1],
+      rotate: [0, 180, 360],
+      opacity: [0.4, 1, 0.4],
+      transition: {
+        duration: 2.5,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }
+    }
+  };
+
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 bg-gradient-to-r from-blue-900 via-indigo-800 to-purple-900 text-white shadow-lg backdrop-blur-md bg-opacity-80 transition-shadow duration-300 hover:shadow-xl">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        {/* Logo and App Title */}
-        <Link href="/dashboard" className="flex items-center gap-3 group">
-          {isLoading ? (
-            <div className="h-14 w-14 bg-gray-300 rounded-full animate-pulse"></div> // Placeholder for logo
-          ) : (
-            <img
-              src={settings?.logo && settings.logo.trim() !== '' ? settings.logo : '/default-logo.png'}
-              alt={settings?.siteName || 'Logo'}
-              className="h-14 w-14 aspect-square object-cover rounded-full border-2 border-white group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 ease-in-out shadow-md group-hover:shadow-yellow-500/50"
-            />
-          )}
-          <span className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-green-300 to-yellow-400 group-hover:scale-105 transition-transform duration-300">
-            {isLoading ? <span className="w-32 h-6 bg-gray-300 animate-pulse rounded"></span> : settings?.siteName || 'Digital Cashbook'}
-          </span>
-        </Link>
+    <motion.nav 
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${
+        scrolled 
+          ? 'bg-gradient-to-r from-slate-900/95 via-purple-900/95 to-slate-900/95 backdrop-blur-xl shadow-2xl shadow-purple-500/20' 
+          : 'bg-gradient-to-r from-slate-900/80 via-purple-900/80 to-slate-900/80 backdrop-blur-lg shadow-lg'
+      }`}
+    >
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <motion.div 
+          animate={{ 
+            background: [
+              'radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)',
+              'radial-gradient(circle at 80% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)',
+              'radial-gradient(circle at 40% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)'
+            ]
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute inset-0"
+        />
+        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-purple-400 to-transparent"></div>
+      </div>
 
-        {/* Mobile Toggle Button */}
-        {/* <button
-          onClick={toggleMenu}
-          className="md:hidden text-white focus:outline-none focus:ring-2 focus:ring-yellow-400 rounded-full p-2 hover:bg-white/10 transition-colors duration-200"
-          aria-label={isOpen ? 'Close menu' : 'Open menu'}
-        >
-          {isOpen ? <X size={30} /> : <Menu size={30} />}
-        </button> */}
+      <div className="relative container mx-auto px-6 py-4">
+        <div className="flex justify-between items-center">
+          {/* Logo and App Title */}
+          <Link href="/dashboard" className="flex items-center gap-4 group relative">
+            <div className="relative">
+              {isLoading ? (
+                <div className="h-16 w-16 bg-gradient-to-br from-purple-300 to-pink-300 rounded-2xl animate-pulse"></div>
+              ) : (
+                <motion.div
+                  variants={logoVariants}
+                  animate="animate"
+                  className="relative"
+                >
+                  <img
+                    src={settings?.logo && settings.logo.trim() !== '' ? settings.logo : '/default-logo.png'}
+                    alt={settings?.siteName || 'Logo'}
+                    className="h-16 w-16 aspect-square object-cover rounded-2xl border-2 border-gradient-to-br from-purple-400 to-pink-400 shadow-2xl group-hover:shadow-purple-500/50 transition-all duration-500 group-hover:scale-110"
+                  />
+                  
+                  {/* Sparkle effects */}
+                  <motion.div
+                    variants={sparkleVariants}
+                    animate="animate"
+                    className="absolute -top-1 -right-1"
+                  >
+                    <Sparkles size={14} className="text-yellow-400 drop-shadow-lg" />
+                  </motion.div>
+                  
+                  <motion.div
+                    variants={{ ...sparkleVariants, animate: { ...sparkleVariants.animate, transition: { ...sparkleVariants.animate.transition, delay: 1 } } }}
+                    animate="animate"
+                    className="absolute -bottom-1 -left-1"
+                  >
+                    <Zap size={12} className="text-cyan-400 drop-shadow-lg" />
+                  </motion.div>
 
-        {/* Navigation Links */}
-        <div
-          className={`absolute md:static top-16 left-0 w-full md:w-auto bg-blue-900/95 md:bg-transparent transition-all duration-500 ease-in-out ${
-            isOpen
-              ? 'max-h-screen opacity-100 translate-y-0'
-              : 'max-h-0 opacity-0 translate-y-[-20px] md:max-h-screen md:opacity-100 md:translate-y-0'
-          } md:flex md:items-center md:space-x-8 overflow-hidden md:overflow-visible shadow-lg md:shadow-none`}
-        >
-          {/* <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-8 p-6 md:p-0">
-        
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 py-2 px-6 text-lg font-medium bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 rounded-lg transition-all duration-300 hover:scale-105 shadow-md hover:shadow-red-500/50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-blue-900"
+                  {/* Glow effect */}
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-400/20 to-pink-400/20 blur-lg group-hover:blur-xl transition-all duration-500 group-hover:scale-125"></div>
+                </motion.div>
+              )}
+            </div>
+
+            <div className="flex flex-col">
+              {isLoading ? (
+                <div className="space-y-2">
+                  <div className="w-40 h-8 bg-gradient-to-r from-purple-300 to-pink-300 animate-pulse rounded-lg"></div>
+                  <div className="w-32 h-2 bg-gradient-to-r from-purple-200 to-pink-200 animate-pulse rounded"></div>
+                </div>
+              ) : (
+                <>
+                  <motion.span 
+                    className="text-4xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 via-cyan-400 to-purple-400 bg-size-200 animate-gradient group-hover:scale-105 transition-transform duration-300"
+                    whileHover={{ scale: 1.05 }}
+                    style={{ backgroundSize: '200% 200%' }}
+                  >
+                    {settings?.siteName || 'Digital Cashbook'}
+                  </motion.span>
+                  <motion.div 
+                    className="w-full h-1 bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 rounded-full"
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: 1 }}
+                    transition={{ duration: 1, delay: 0.5 }}
+                  />
+                </>
+              )}
+            </div>
+
+            {/* Floating particles effect */}
+            <div className="absolute inset-0 pointer-events-none">
+              {[...Array(3)].map((_, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute w-1 h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full"
+                  animate={{
+                    x: [0, 30, -20, 0],
+                    y: [0, -15, 10, 0],
+                    opacity: [0, 1, 0],
+                    scale: [0, 1.5, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    delay: i * 1.3,
+                    ease: "easeInOut"
+                  }}
+                  style={{
+                    left: `${20 + i * 30}%`,
+                    top: `${30 + i * 10}%`,
+                  }}
+                />
+              ))}
+            </div>
+          </Link>
+
+          {/* Desktop Navigation (if needed) */}
+          <div className="hidden lg:flex items-center space-x-8">
+            {navLinks.map((link, index) => (
+              <motion.div
+                key={link.href}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <Link
+                  href={link.href}
+                  className={`relative px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                    pathname === link.href
+                      ? `bg-gradient-to-r ${link.color} text-white shadow-lg shadow-purple-500/30`
+                      : 'text-gray-300 hover:text-white hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <span className="relative z-10">{link.label}</span>
+                  {pathname === link.href && (
+                    <motion.div
+                      className="absolute inset-0 rounded-xl blur-lg opacity-40"
+                      style={{
+                        background: `linear-gradient(45deg, ${link.color.split(' ')[1]}, ${link.color.split(' ')[3]})`,
+                      }}
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                  )}
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Additional decorative elements */}
+          <div className="hidden md:flex items-center">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              className="w-8 h-8 border-2 border-purple-400/30 rounded-full mr-4"
             >
-              <LogOut size={18} />
-              Logout
-            </button>
-          </div> */}
+              <div className="w-full h-full border-2 border-pink-400/50 rounded-full border-dashed"></div>
+            </motion.div>
+            
+            <div className="flex flex-col items-end">
+              <div className="text-xs text-gray-400 font-medium"> Sharplogicians</div>
+              <div className="flex space-x-1">
+                {[...Array(5)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="w-1 h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full"
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ 
+                      duration: 1.5, 
+                      repeat: Infinity, 
+                      delay: i * 0.2 
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </nav>
+
+      <style jsx>{`
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient {
+          animation: gradient 3s ease infinite;
+        }
+        .bg-size-200 {
+          background-size: 200% 200%;
+        }
+      `}</style>
+    </motion.nav>
   );
 }

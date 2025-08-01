@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { PlusCircle, X } from 'lucide-react';
+import { Package, BarChart3, Palette, Plus, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ManageProducts() {
@@ -25,68 +25,64 @@ export default function ManageProducts() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
   const [totals, setTotals] = useState({
     totalCostPrice: 0,
     totalRetailPrice: 0,
     totalSalePrice: 0,
   });
-  const [editingCell, setEditingCell] = useState(null); // { productId, field }
-  const [editValue, setEditValue] = useState(''); // Temporary value for editing
+  const [editingCell, setEditingCell] = useState(null);
+  const [editValue, setEditValue] = useState('');
   const router = useRouter();
   const token = localStorage.getItem('token');
   const categories = ['gallon', 'quarter', 'drums', 'liters', 'Dibbi'];
 
+  // Fetch products and totals
   useEffect(() => {
     if (!token) {
       router.push('/auth/signin');
-    } else {
-      fetchProducts();
+      return;
     }
-  }, [search, page, token, router]);
-
-  const fetchProducts = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch paginated products
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
-        params: { search, page, limit },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setProducts(res.data.products);
-      setTotalPages(Math.ceil(res.data.total / limit));
-
-      // Fetch totals for all products
-      const totalsRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/totals`, {
-        params: { search },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setTotals({
-        totalCostPrice: totalsRes.data.totalCostPrice || 0,
-        totalRetailPrice: totalsRes.data.totalRetailPrice || 0,
-        totalSalePrice: totalsRes.data.totalSalePrice || 0,
-      });
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to fetch products', {
-        position: 'top-right',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [productsRes, totalsRes] = await Promise.all([
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
+            params: { search, page, limit },
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/totals`, {
+            params: { search },
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+        setProducts(productsRes.data.products || []);
+        setTotalPages(Math.ceil(productsRes.data.total / limit));
+        setTotals({
+          totalCostPrice: totalsRes.data.totalCostPrice || 0,
+          totalRetailPrice: totalsRes.data.totalRetailPrice || 0,
+          totalSalePrice: totalsRes.data.totalSalePrice || 0,
+        });
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to fetch data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, [search, page, token, router, limit]);
 
   const handleAddProduct = async (e) => {
     e.preventDefault();
     const { name, costPrice, retailPrice, discountPercentage, category } = formData;
-
     if (costPrice < 0 || retailPrice < 0) {
-      toast.error('Prices cannot be negative', { position: 'top-right' });
+      toast.error('Prices cannot be negative');
       return;
     }
     if (discountPercentage < 0 || discountPercentage > 100) {
-      toast.error('Discount percentage must be between 0 and 100', { position: 'top-right' });
+      toast.error('Discount percentage must be between 0 and 100');
       return;
     }
-
     try {
       await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/product`,
@@ -99,29 +95,26 @@ export default function ManageProducts() {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      toast.success('Product added successfully!', { position: 'top-right' });
+      toast.success('Product added successfully!');
       setFormData({ name: '', costPrice: '', retailPrice: '', discountPercentage: '', category: '' });
       setIsAddModalOpen(false);
-      fetchProducts();
+      fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add product', {
-        position: 'top-right' });
+      toast.error(error.response?.data?.message || 'Failed to add product');
     }
   };
 
   const handleEditProduct = async (e) => {
     e.preventDefault();
     const { name, costPrice, retailPrice, discountPercentage, category } = formData;
-
     if (costPrice < 0 || retailPrice < 0) {
-      toast.error('Prices cannot be negative', { position: 'top-right' });
+      toast.error('Prices cannot be negative');
       return;
     }
     if (discountPercentage < 0 || discountPercentage > 100) {
-      toast.error('Discount percentage must be between 0 and 100', { position: 'top-right' });
+      toast.error('Discount percentage must be between 0 and 100');
       return;
     }
-
     try {
       await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/product/${editProduct._id}`,
@@ -134,32 +127,27 @@ export default function ManageProducts() {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      toast.success('Product updated successfully!', { position: 'top-right' });
+      toast.success('Product updated successfully!');
       setIsEditModalOpen(false);
       setEditProduct(null);
-      fetchProducts();
+      fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update product', {
-        position: 'top-right' });
+      toast.error(error.response?.data?.message || 'Failed to update product');
     }
   };
 
   const handleInlineEdit = async (productId, field, value) => {
-    // Validate input
     if (field === 'costPrice' || field === 'retailPrice') {
       if (value < 0) {
-        toast.error(`${field === 'costPrice' ? 'Cost Price' : 'Retail Price'} cannot be negative`, {
-          position: 'top-right',
-        });
+        toast.error(`${field === 'costPrice' ? 'Cost Price' : 'Retail Price'} cannot be negative`);
         return;
       }
     } else if (field === 'discountPercentage') {
       if (value < 0 || value > 100) {
-        toast.error('Discount percentage must be between 0 and 100', { position: 'top-right' });
+        toast.error('Discount percentage must be between 0 and 100');
         return;
       }
     }
-
     try {
       const product = products.find((p) => p._id === productId);
       const updatedData = {
@@ -169,37 +157,31 @@ export default function ManageProducts() {
         discountPercentage: field === 'discountPercentage' ? Number(value) : product.discountPercentage,
         category: product.category,
       };
-
       await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/product/${productId}`,
         updatedData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      toast.success('Product updated successfully!', { position: 'top-right' });
-      fetchProducts(); // Refresh products and totals
+      toast.success('Product updated successfully!');
+      fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update product', {
-        position: 'top-right',
-      });
+      toast.error(error.response?.data?.message || 'Failed to update product');
     } finally {
-      setEditingCell(null); // Exit editing mode
+      setEditingCell(null);
       setEditValue('');
     }
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      try {
-        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/product/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        toast.success('Product deleted successfully!', { position: 'top-right' });
-        fetchProducts();
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to delete product', {
-          position: 'top-right',
-        });
-      }
+    if (!confirm('Are you sure you want to delete this product?')) return;
+    try {
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/product/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success('Product deleted successfully!');
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete product');
     }
   };
 
@@ -221,11 +203,6 @@ export default function ManageProducts() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    router.push('/auth/signin');
-  };
-
   const calculateSalePrice = (retailPrice, discountPercentage) => {
     const retail = Number(retailPrice) || 0;
     const discount = Number(discountPercentage) || 0;
@@ -243,63 +220,63 @@ export default function ManageProducts() {
     }
   };
 
-  return (
-    <div className="min-h-screen py-20 bg-gradient-to-br from-gray-50 to-gray-100 flex">
-      <ToastContainer theme="colored" />
+  const quickActions = [
+    { title: 'Manage Items', href: '/products', icon: <Package className="w-4 h-4" />, color: 'bg-emerald-500' },
+    { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-4 h-4" />, color: 'bg-blue-500' },
+    { title: 'Manage Product', href: '/product', icon: <Plus className="w-4 h-4" />, color: 'bg-purple-500' },
+    { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-4 h-4" />, color: 'bg-orange-500' },
+  ];
 
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 flex justify-between items-center shadow-lg">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden text-white focus:outline-none"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7" />
-              </svg>
-            </button>
-            <h1 className="text-2xl font-bold tracking-tight">Inventory Management Dashboard</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/products"
-              className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
-            >
-              Manage Items
-            </Link>
-            <Link
-              href="/product"
-              className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
-            >
-              Manage Product
-            </Link>
-            <Link
-              href="/colors"
-              className="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-300"
-            >
-              Manage Colors
-            </Link>
-          </div>
-        </header>
-        {/* Main Content */}
-        <main className="p-4 sm:p-6 flex-1">
-          <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6 sm:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-800">Product Catalog</h2>
-              <button
-                onClick={() => {
-                  setFormData({ name: '', costPrice: '', retailPrice: '', discountPercentage: '', category: '' });
-                  setIsAddModalOpen(true);
-                }}
-                className="flex items-center px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl shadow-md hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:-translate-y-1"
-              >
-                <PlusCircle className="w-5 h-5 mr-2" />
-                Add Product
-              </button>
+  return (
+    <div className="min-h-screen bg-gray-100 py-22">
+      <ToastContainer theme="colored" position="top-right" />
+
+      {/* Header */}
+      <header className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-b-lg shadow-lg p-4">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <Package className="w-6 h-6 text-indigo-200" />
+            <div>
+              <h1 className="text-xl font-bold">Inventory Dashboard</h1>
+              <p className="text-sm text-indigo-200">Manage your product catalog</p>
             </div>
-            <div className="mb-6">
-              <div className="relative w-full sm:w-1/3">
+          </div>
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 rounded-full hover:bg-indigo-700 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Sidebar (Quick Actions) */}
+      {isSidebarOpen && (
+        <div className="mt-4 mx-4 bg-white rounded-lg shadow-lg p-4 animate-slide-in">
+          <h2 className="text-sm font-semibold text-gray-800 mb-3">Quick Actions</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {quickActions.map((action, index) => (
+              <Link
+                key={index}
+                href={action.href}
+                className={`flex items-center space-x-2 p-3 rounded-lg ${action.color} text-white hover:opacity-90 text-sm font-medium transition-colors`}
+              >
+                {action.icon}
+                <span>{action.title}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <main className="mt-6 px-4">
+        <div className="max-w-6xl mx-auto bg-white rounded-lg shadow-lg p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
+            <h2 className="text-xl font-bold text-gray-900">Product Catalog</h2>
+            <div className="flex items-center gap-3">
+              <div className="relative w-64">
                 <input
                   type="text"
                   placeholder="Search by name or category..."
@@ -308,419 +285,314 @@ export default function ManageProducts() {
                     setSearch(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full p-4 pl-12 pr-4 bg-white border border-gray-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-300 text-gray-700 placeholder-gray-400"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
+                  aria-label="Search products"
                 />
                 <svg
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                  className="absolute left-3 top-2.5 h-4 w-4 text-gray-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
+              <button
+                onClick={() => {
+                  setFormData({ name: '', costPrice: '', retailPrice: '', discountPercentage: '', category: '' });
+                  setIsAddModalOpen(true);
+                }}
+                className="flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 text-sm font-medium transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Product
+              </button>
             </div>
+          </div>
 
-            {/* Table for Desktop */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white">
-                    <th className="p-4 text-left font-semibold text-sm uppercase tracking-wide">S.No</th>
-                    <th className="p-4 text-left font-semibold text-sm uppercase tracking-wide">Name</th>
-                    <th className="p-4 text-left font-semibold text-sm uppercase tracking-wide">Cost Price (PKR)</th>
-                    <th className="p-4 text-left font-semibold text-sm uppercase tracking-wide">Retail Price (PKR)</th>
-                    <th className="p-4 text-left font-semibold text-sm uppercase tracking-wide">Discount (%)</th>
-                    <th className="p-4 text-left font-semibold text-sm uppercase tracking-wide">Sale Price (PKR)</th>
-                    <th className="p-4 text-left font-semibold text-sm uppercase tracking-wide">Category</th>
-                    <th className="p-4 text-left font-semibold text-sm uppercase tracking-wide">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {isLoading ? (
-                    <tr>
-                      <td colSpan="8" className="p-6 text-center text-gray-500">
-                        <div className="flex justify-center items-center">
-                          <svg
-                            className="animate-spin h-8 w-8 mr-3 text-indigo-600"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                            />
-                          </svg>
-                          <span className="text-lg">Loading products...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : products?.length > 0 ? (
-                    products.map((product, index) => (
-                      <tr
-                        key={product._id}
-                        className="border-b border-gray-100 hover:bg-indigo-50 transition-colors duration-200"
-                      >
-                        <td className="p-4 text-gray-600">{(page - 1) * limit + index + 1}</td>
-                        <td className="p-4 text-gray-800 font-medium">{product.name}</td>
-                        <td
-                          className="p-4 text-gray-600 cursor-pointer"
-                          onDoubleClick={() => startEditing(product._id, 'costPrice', product.costPrice)}
-                        >
-                          {editingCell?.productId === product._id && editingCell?.field === 'costPrice' ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleInlineEdit(product._id, 'costPrice', editValue)}
-                              onKeyDown={(e) => handleKeyDown(e, product._id, 'costPrice')}
-                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
-                              autoFocus
-                            />
-                          ) : (
-                            `PKR ${product.costPrice.toFixed(2)}`
-                          )}
-                        </td>
-                        <td
-                          className="p-4 text-gray-600 cursor-pointer"
-                          onDoubleClick={() => startEditing(product._id, 'retailPrice', product.retailPrice)}
-                        >
-                          {editingCell?.productId === product._id && editingCell?.field === 'retailPrice' ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleInlineEdit(product._id, 'retailPrice', editValue)}
-                              onKeyDown={(e) => handleKeyDown(e, product._id, 'retailPrice')}
-                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
-                              autoFocus
-                            />
-                          ) : (
-                            `PKR ${product.retailPrice.toFixed(2)}`
-                          )}
-                        </td>
-                        <td
-                          className="p-4 text-gray-600 cursor-pointer"
-                          onDoubleClick={() => startEditing(product._id, 'discountPercentage', product.discountPercentage)}
-                        >
-                          {editingCell?.productId === product._id && editingCell?.field === 'discountPercentage' ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleInlineEdit(product._id, 'discountPercentage', editValue)}
-                              onKeyDown={(e) => handleKeyDown(e, product._id, 'discountPercentage')}
-                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
-                              autoFocus
-                            />
-                          ) : (
-                            `${product.discountPercentage}%`
-                          )}
-                        </td>
-                        <td className="p-4 text-gray-600">
-                          PKR {calculateSalePrice(product.retailPrice, product.discountPercentage)}
-                        </td>
-                        <td className="p-4 text-gray-600">
-                          {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
-                        </td>
-                        <td className="p-4 flex space-x-3">
-                          <button
-                            onClick={() => openEditModal(product)}
-                            className="flex items-center px-3 py-1 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-all duration-200"
-                            title="Edit"
-                          >
-                            <svg
-                              className="w-4 h-4 mr-1"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"
-                              />
-                            </svg>
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(product._id)}
-                            className="flex items-center px-3 py-1 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-all duration-200"
-                            title="Delete"
-                          >
-                            <svg
-                              className="w-4 h-4 mr-1"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4M4 7h16"
-                              />
-                            </svg>
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="8" className="p-6 text-center text-gray-500">
-                        <div className="flex flex-col items-center">
-                          <svg
-                            className="w-16 h-16 text-gray-400 mb-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                            />
-                          </svg>
-                          <span className="text-lg">No products found.</span>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-            
-              </table>
-            </div>
-
-            {/* Card Layout for Mobile/Tablet */}
-            <div className="lg:hidden grid gap-6 p-4">
-              {isLoading ? (
-                <div className="flex justify-center items-center p-6">
-                  <svg
-                    className="animate-spin h-8 w-8 mr-3 text-indigo-600"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <span className="text-lg text-gray-600">Loading products...</span>
-                </div>
-              ) : products?.length > 0 ? (
-                products.map((product, index) => (
-                  <div
-                    key={product._id}
-                    className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold text-gray-800">{product.name}</h3>
-                      <span className="text-sm text-gray-500">
-                        #{(page - 1) * limit + index + 1}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div>
-                        <p
-                          className="cursor-pointer"
-                          onDoubleClick={() => startEditing(product._id, 'costPrice', product.costPrice)}
-                        >
-                          <span className="font-medium">Cost Price:</span>{' '}
-                          {editingCell?.productId === product._id && editingCell?.field === 'costPrice' ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleInlineEdit(product._id, 'costPrice', editValue)}
-                              onKeyDown={(e) => handleKeyDown(e, product._id, 'costPrice')}
-                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
-                              autoFocus
-                            />
-                          ) : (
-                            `PKR ${product.costPrice.toFixed(2)}`
-                          )}
-                        </p>
-                        <p
-                          className="cursor-pointer"
-                          onDoubleClick={() => startEditing(product._id, 'retailPrice', product.retailPrice)}
-                        >
-                          <span className="font-medium">Retail Price:</span>{' '}
-                          {editingCell?.productId === product._id && editingCell?.field === 'retailPrice' ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleInlineEdit(product._id, 'retailPrice', editValue)}
-                              onKeyDown={(e) => handleKeyDown(e, product._id, 'retailPrice')}
-                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
-                              autoFocus
-                            />
-                          ) : (
-                            `PKR ${product.retailPrice.toFixed(2)}`
-                          )}
-                        </p>
-                        <p
-                          className="cursor-pointer"
-                          onDoubleClick={() => startEditing(product._id, 'discountPercentage', product.discountPercentage)}
-                        >
-                          <span className="font-medium">Discount:</span>{' '}
-                          {editingCell?.productId === product._id && editingCell?.field === 'discountPercentage' ? (
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleInlineEdit(product._id, 'discountPercentage', editValue)}
-                              onKeyDown={(e) => handleKeyDown(e, product._id, 'discountPercentage')}
-                              className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500"
-                              autoFocus
-                            />
-                          ) : (
-                            `${product.discountPercentage}%`
-                          )}
-                        </p>
-                      </div>
-                      <div>
-                        <p>
-                          <span className="font-medium">Sale Price:</span> PKR{' '}
-                          {calculateSalePrice(product.retailPrice, product.discountPercentage)}
-                        </p>
-                        <p>
-                          <span className="font-medium">Category:</span>{' '}
-                          {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex justify-end space-x-3 mt-4">
-                      <button
-                        onClick={() => openEditModal(product)}
-                        className="flex items-center px-4 py-2 bg-indigo-100 text-indigo-700 rounded-md hover:bg-indigo-200 transition-all duration-200"
-                        title="Edit"
-                      >
-                        <svg
-                          className="w-4 h-4 mr-1"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z"
-                          />
-                        </svg>
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product._id)}
-                        className="flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-all duration-200"
-                        title="Delete"
-                      >
-                        <svg
-                          className="w-4 h-4 mr-1"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4M4 7h16"
-                          />
-                        </svg>
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-6 text-center text-gray-500">
-                  <div className="flex flex-col items-center">
-                    <svg
-                      className="w-16 h-16 text-gray-400 mb-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
+          {/* Table for Desktop */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-indigo-50">
+                <tr>
+                  {['S.No', 'Name', 'Cost Price', 'Retail Price', 'Discount', 'Sale Price', 'Category', 'Actions'].map((header) => (
+                    <th
+                      key={header}
+                      className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wide"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                      />
-                    </svg>
-                    <span className="text-lg">No products found.</span>
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="8" className="px-4 py-6 text-center text-gray-500 text-sm">
+                      <div className="flex justify-center items-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-600 mr-2"></div>
+                        Loading products...
+                      </div>
+                    </td>
+                  </tr>
+                ) : products.length > 0 ? (
+                  products.map((product, index) => (
+                    <tr key={product._id} className="hover:bg-indigo-50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-gray-700">{(page - 1) * limit + index + 1}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{product.name}</td>
+                      <td
+                        className="px-4 py-3 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded"
+                        onDoubleClick={() => startEditing(product._id, 'costPrice', product.costPrice)}
+                      >
+                        {editingCell?.productId === product._id && editingCell?.field === 'costPrice' ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={() => handleInlineEdit(product._id, 'costPrice', editValue)}
+                            onKeyDown={(e) => handleKeyDown(e, product._id, 'costPrice')}
+                            className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
+                            autoFocus
+                          />
+                        ) : (
+                          `PKR ${product.costPrice.toFixed(2)}`
+                        )}
+                      </td>
+                      <td
+                        className="px-4 py-3 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded"
+                        onDoubleClick={() => startEditing(product._id, 'retailPrice', product.retailPrice)}
+                      >
+                        {editingCell?.productId === product._id && editingCell?.field === 'retailPrice' ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={() => handleInlineEdit(product._id, 'retailPrice', editValue)}
+                            onKeyDown={(e) => handleKeyDown(e, product._id, 'retailPrice')}
+                            className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
+                            autoFocus
+                          />
+                        ) : (
+                          `PKR ${product.retailPrice.toFixed(2)}`
+                        )}
+                      </td>
+                      <td
+                        className="px-4 py-3 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded"
+                        onDoubleClick={() => startEditing(product._id, 'discountPercentage', product.discountPercentage)}
+                      >
+                        {editingCell?.productId === product._id && editingCell?.field === 'discountPercentage' ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={() => handleInlineEdit(product._id, 'discountPercentage', editValue)}
+                            onKeyDown={(e) => handleKeyDown(e, product._id, 'discountPercentage')}
+                            className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-sm"
+                            autoFocus
+                          />
+                        ) : (
+                          `${product.discountPercentage}%`
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        PKR {calculateSalePrice(product.retailPrice, product.discountPercentage)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+                      </td>
+                      <td className="px-4 py-3 text-sm flex space-x-2">
+                        <button
+                          onClick={() => openEditModal(product)}
+                          className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-medium transition-colors"
+                          title="Edit"
+                          aria-label="Edit product"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product._id)}
+                          className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-medium transition-colors"
+                          title="Delete"
+                          aria-label="Delete product"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="px-4 py-6 text-center text-gray-500 text-sm">
+                      <div className="flex flex-col items-center">
+                        <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
+                        No products found
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Card Layout for Mobile/Tablet */}
+          <div className="lg:hidden grid gap-4">
+            {isLoading ? (
+              <div className="flex justify-center items-center p-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-indigo-600 mr-2"></div>
+                <span className="text-sm text-gray-600">Loading products...</span>
+              </div>
+            ) : products.length > 0 ? (
+              products.map((product, index) => (
+                <div
+                  key={product._id}
+                  className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow animate-fade-in"
+                >
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
+                    <span className="text-xs text-gray-500">#{(page - 1) * limit + index + 1}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs text-gray-700">
+                    <div>
+                      <p
+                        className="cursor-pointer hover:bg-gray-100 p-1 rounded"
+                        onDoubleClick={() => startEditing(product._id, 'costPrice', product.costPrice)}
+                      >
+                        <span className="font-medium">Cost Price:</span>{' '}
+                        {editingCell?.productId === product._id && editingCell?.field === 'costPrice' ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={() => handleInlineEdit(product._id, 'costPrice', editValue)}
+                            onKeyDown={(e) => handleKeyDown(e, product._id, 'costPrice')}
+                            className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-xs"
+                            autoFocus
+                          />
+                        ) : (
+                          `PKR ${product.costPrice.toFixed(2)}`
+                        )}
+                      </p>
+                      <p
+                        className="cursor-pointer hover:bg-gray-100 p-1 rounded"
+                        onDoubleClick={() => startEditing(product._id, 'retailPrice', product.retailPrice)}
+                      >
+                        <span className="font-medium">Retail Price:</span>{' '}
+                        {editingCell?.productId === product._id && editingCell?.field === 'retailPrice' ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={() => handleInlineEdit(product._id, 'retailPrice', editValue)}
+                            onKeyDown={(e) => handleKeyDown(e, product._id, 'retailPrice')}
+                            className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-xs"
+                            autoFocus
+                          />
+                        ) : (
+                          `PKR ${product.retailPrice.toFixed(2)}`
+                        )}
+                      </p>
+                      <p
+                        className="cursor-pointer hover:bg-gray-100 p-1 rounded"
+                        onDoubleClick={() => startEditing(product._id, 'discountPercentage', product.discountPercentage)}
+                      >
+                        <span className="font-medium">Discount:</span>{' '}
+                        {editingCell?.productId === product._id && editingCell?.field === 'discountPercentage' ? (
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={() => handleInlineEdit(product._id, 'discountPercentage', editValue)}
+                            onKeyDown={(e) => handleKeyDown(e, product._id, 'discountPercentage')}
+                            className="w-full p-1 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-xs"
+                            autoFocus
+                          />
+                        ) : (
+                          `${product.discountPercentage}%`
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <p>
+                        <span className="font-medium">Sale Price:</span> PKR{' '}
+                        {calculateSalePrice(product.retailPrice, product.discountPercentage)}
+                      </p>
+                      <p>
+                        <span className="font-medium">Category:</span>{' '}
+                        {product.category.charAt(0).toUpperCase() + product.category.slice(1)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-2 mt-3">
+                    <button
+                      onClick={() => openEditModal(product)}
+                      className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-medium transition-colors"
+                      title="Edit"
+                      aria-label="Edit product"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product._id)}
+                      className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-xs font-medium transition-colors"
+                      title="Delete"
+                      aria-label="Delete product"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Inventory Summary */}
-            {products?.length > 0 && (
-              <div className="bg-white rounded-xl shadow-md p-6 mt-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Inventory Summary</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-gray-600">
-                  <p>
-                    <span className="font-medium">Total Cost Price:</span> PKR{' '}
-                    {totals.totalCostPrice.toFixed(2)}
-                  </p>
-                  <p>
-                    <span className="font-medium">Total Retail Price:</span> PKR{' '}
-                    {totals.totalRetailPrice.toFixed(2)}
-                  </p>
-                  <p>
-                    <span className="font-medium">Total Sale Price:</span> PKR{' '}
-                    {totals.totalSalePrice.toFixed(2)}
-                  </p>
+              ))
+            ) : (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                <div className="flex flex-col items-center">
+                  <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  No products found
                 </div>
               </div>
             )}
           </div>
-        </main>
+
+          {/* Inventory Summary */}
+          {products.length > 0 && (
+            <div className="mt-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg shadow-lg p-4">
+              <h3 className="text-sm font-semibold text-indigo-800 mb-3">Inventory Summary</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-gray-700">
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <span className="font-medium text-indigo-700">Total Cost Price:</span> PKR{' '}
+                  {totals.totalCostPrice.toFixed(2)}
+                </div>
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <span className="font-medium text-indigo-700">Total Retail Price:</span> PKR{' '}
+                  {totals.totalRetailPrice.toFixed(2)}
+                </div>
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                  <span className="font-medium text-indigo-700">Total Sale Price:</span> PKR{' '}
+                  {totals.totalSalePrice.toFixed(2)}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Pagination */}
-        {products?.length > 0 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center mt-6 px-4 sm:px-6">
-            <div className="text-gray-600 text-sm mb-2 sm:mb-0">Page {page} of {totalPages}</div>
+        {products.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-4">
+            <div className="text-gray-600 text-xs mb-2 sm:mb-0">Page {page} of {totalPages}</div>
             <div className="flex space-x-2">
               <button
                 onClick={() => handlePageChange(page - 1)}
                 disabled={page === 1}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-md hover:from-indigo-700 hover:to-indigo-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+                className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg hover:from-indigo-700 hover:to-blue-700 text-xs font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 Previous
               </button>
@@ -728,11 +600,11 @@ export default function ManageProducts() {
                 <button
                   key={i}
                   onClick={() => handlePageChange(i + 1)}
-                  className={`px-4 py-2 rounded-md text-sm font-medium ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                     page === i + 1
-                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white'
+                      ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  } transition-all duration-200`}
+                  }`}
                 >
                   {i + 1}
                 </button>
@@ -740,87 +612,87 @@ export default function ManageProducts() {
               <button
                 onClick={() => handlePageChange(page + 1)}
                 disabled={page === totalPages}
-                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-md hover:from-indigo-700 hover:to-indigo-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200"
+                className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg hover:from-indigo-700 hover:to-blue-700 text-xs font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 Next
               </button>
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       {/* Add Product Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl transform transition-all duration-300">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Add New Product</h2>
+              <h2 className="text-lg font-bold text-gray-900">Add New Product</h2>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-all duration-200"
-                aria-label="Close"
+                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Close modal"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleAddProduct} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <label className="block text-xs font-medium text-gray-700">Name</label>
                 <input
                   type="text"
                   placeholder="Product Name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Cost Price (PKR)</label>
+                <label className="block text-xs font-medium text-gray-700">Cost Price (PKR)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={formData.costPrice}
                   onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                   min="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Retail Price (PKR)</label>
+                <label className="block text-xs font-medium text-gray-700">Retail Price (PKR)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={formData.retailPrice}
                   onChange={(e) => setFormData({ ...formData, retailPrice: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                   min="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Discount Percentage (%)</label>
+                <label className="block text-xs font-medium text-gray-700">Discount Percentage (%)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0"
                   value={formData.discountPercentage}
                   onChange={(e) => setFormData({ ...formData, discountPercentage: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                   min="0"
                   max="100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Category</label>
+                <label className="block text-xs font-medium text-gray-700">Category</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                 >
                   <option value="">Select a category</option>
@@ -834,14 +706,14 @@ export default function ManageProducts() {
               <div className="flex space-x-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-3 rounded-md hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200"
+                  className="flex-1 p-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg hover:from-indigo-700 hover:to-blue-700 text-sm font-medium transition-colors"
                 >
                   Add Product
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 bg-gray-200 text-gray-700 p-3 rounded-md hover:bg-gray-300 transition-all duration-200"
+                  className="flex-1 p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -853,76 +725,76 @@ export default function ManageProducts() {
 
       {/* Edit Product Modal */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl transform transition-all duration-300">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Edit Product</h2>
+              <h2 className="text-lg font-bold text-gray-900">Edit Product</h2>
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-all duration-200"
-                aria-label="Close"
+                className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                aria-label="Close modal"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <form onSubmit={handleEditProduct} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <label className="block text-xs font-medium text-gray-700">Name</label>
                 <input
                   type="text"
                   placeholder="Product Name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Cost Price (PKR)</label>
+                <label className="block text-xs font-medium text-gray-700">Cost Price (PKR)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={formData.costPrice}
                   onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                   min="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Retail Price (PKR)</label>
+                <label className="block text-xs font-medium text-gray-700">Retail Price (PKR)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
                   value={formData.retailPrice}
                   onChange={(e) => setFormData({ ...formData, retailPrice: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                   min="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Discount Percentage (%)</label>
+                <label className="block text-xs font-medium text-gray-700">Discount Percentage (%)</label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0"
                   value={formData.discountPercentage}
                   onChange={(e) => setFormData({ ...formData, discountPercentage: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                   min="0"
                   max="100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Category</label>
+                <label className="block text-xs font-medium text-gray-700">Category</label>
                 <select
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="mt-1 p-3 border border-gray-200 rounded-md w-full focus:ring-2 focus:ring-indigo-500 focus:border-indigo-600 transition"
+                  className="mt-1 p-2 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors"
                   required
                 >
                   <option value="">Select a category</option>
@@ -936,14 +808,14 @@ export default function ManageProducts() {
               <div className="flex space-x-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white p-3 rounded-md hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200"
+                  className="flex-1 p-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-lg hover:from-indigo-700 hover:to-blue-700 text-sm font-medium transition-colors"
                 >
                   Update Product
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="flex-1 bg-gray-200 text-gray-700 p-3 rounded-md hover:bg-gray-300 transition-all duration-200"
+                  className="flex-1 p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -952,6 +824,32 @@ export default function ManageProducts() {
           </div>
         </div>
       )}
+      <style jsx global>{`
+        @keyframes slideIn {
+          from {
+            transform: translateY(-10px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        .animate-slide-in {
+          animation: slideIn 0.3s ease-out;
+        }
+        .animate-fade-in {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

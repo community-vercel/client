@@ -23,6 +23,8 @@ export default function Sidebar() {
     localStorage.removeItem('token');
     localStorage.removeItem('userid');
     localStorage.removeItem('role');
+        localStorage.removeItem('shopId');
+
     setIsOpen(false);
     router.push('/login');
   };
@@ -42,7 +44,7 @@ export default function Sidebar() {
   ];
 
   // Filter links based on role
-  if (role !== 'admin') {
+  if (  role !== 'superadmin') {
     links = links.filter(link => link.href !== '/user' && link.href !== '/settings');
   }
 

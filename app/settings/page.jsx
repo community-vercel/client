@@ -1,12 +1,13 @@
+// pages/Settings.js
 'use client';
+
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Upload } from 'lucide-react';
-import { getSettings, updateSettings } from '../../lib/api';
-import api from '../../lib/api';
+import { getSettings, updateSettings, createBackup, getBackups, restoreBackup } from '../../lib/api';
+import axios from 'axios';
 
 export default function Settings() {
-  // State declarations
   const [settings, setSettings] = useState({
     siteName: '',
     phone: '',
@@ -14,28 +15,42 @@ export default function Settings() {
     openingBalance: '',
     openingBalanceSet: false,
   });
-
-  // Logo upload states
   const [logoFile, setLogoFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-
-  // UI feedback states
   const [message, setMessage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // Backup functionality states
   const [backups, setBackups] = useState([]);
   const [selectedBackup, setSelectedBackup] = useState('');
   const [backupStatus, setBackupStatus] = useState(null);
-
-  // Effects
+  const [shops, setShops] = useState([]);
+  const [selectedShopId, setSelectedShopId] = useState(null);
+  const [role, setRole] = useState(null);
+console.log("selectedShop",selectedShopId)
   useEffect(() => {
+    const userRole = localStorage.getItem('role');
+    const shopId = localStorage.getItem('shopId');
+    setRole(userRole);
+    // setSelectedShopId(shopId);
     fetchSettings();
     fetchBackups();
-  }, []);
+    if (userRole === 'superadmin') {
+      fetchShops();
+    }
+  }, [selectedShopId]);
 
-  // API Functions
+  const fetchShops = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/shops`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setShops(response.data);
+    } catch (err) {
+      console.error('Error fetching shops:', err);
+    }
+  };
+
   const fetchSettings = async () => {
     try {
       const { data } = await getSettings();
@@ -56,7 +71,7 @@ export default function Settings() {
 
   const fetchBackups = async () => {
     try {
-      const backupsRes = await api.get('/backup/list');
+      const backupsRes = await getBackups(role === 'superadmin' ? selectedShopId : null);
       setBackups(backupsRes.data.backups || []);
     } catch (error) {
       const errorMessage = error.response?.status === 404
@@ -67,7 +82,6 @@ export default function Settings() {
     }
   };
 
-  // Event Handlers
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     setLogoFile(file);
@@ -88,20 +102,18 @@ export default function Settings() {
         siteName: settings.siteName,
         phone: settings.phone,
       };
-
       if (logoFile) data.logo = logoFile;
       if (settings.openingBalance && !settings.openingBalanceSet) {
         data.openingBalance = parseFloat(settings.openingBalance);
       }
-
+      if (role === 'superadmin' && selectedShopId) {
+        data.shopId = selectedShopId;
+      }
       await updateSettings(data);
       setMessage('Settings updated successfully!');
-
-      // Refresh settings and reset form
       await fetchSettings();
       setLogoFile(null);
       setPreviewUrl(null);
-
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       setMessage('Failed to update settings. Please try again.');
@@ -116,13 +128,11 @@ export default function Settings() {
     try {
       setBackupStatus(null);
       setIsLoading(true);
-
-      const response = await api.post('/backup/create');
+      const response = await createBackup(role === 'superadmin' ? selectedShopId : null);
       setBackupStatus({
         type: 'success',
         message: `Backup created: ${response.data.filename}`,
       });
-
       await fetchBackups();
     } catch (error) {
       setBackupStatus({
@@ -151,11 +161,10 @@ export default function Settings() {
     try {
       setBackupStatus(null);
       setIsLoading(true);
-
-      const response = await api.post('/backup/restore', {
+      const response = await restoreBackup({
         filename: selectedBackup,
+        shopId: role === 'superadmin' ? selectedShopId : null,
       });
-
       setBackupStatus({
         type: 'success',
         message: response.data.message,
@@ -171,10 +180,8 @@ export default function Settings() {
     }
   };
 
-  // Render Component
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-900 to-pink-900 flex flex-col items-center py-28 px-4 sm:px-6 lg:px-8">
-      {/* Header */}
       <motion.h1
         className="text-4xl font-extrabold text-white mb-8 tracking-tight drop-shadow-md"
         initial={{ opacity: 0, y: -30 }}
@@ -184,7 +191,6 @@ export default function Settings() {
         Site Settings
       </motion.h1>
 
-      {/* Success/Error Message */}
       <AnimatePresence>
         {message && (
           <motion.div
@@ -201,7 +207,6 @@ export default function Settings() {
         )}
       </AnimatePresence>
 
-      {/* Error Message */}
       <AnimatePresence>
         {error && (
           <motion.div
@@ -216,16 +221,34 @@ export default function Settings() {
         )}
       </AnimatePresence>
 
-      {/* Main Form Container */}
       <motion.div
         className="w-full max-w-lg bg-white/95 backdrop-blur-md shadow-xl rounded-2xl p-8"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        {/* Settings Form */}
+        {role === 'superadmin' && (
+          <div className="mb-6">
+            <label htmlFor="shopSelect" className="block text-sm font-medium text-gray-700 mb-2">
+              Select Shop
+            </label>
+            <select
+              id="shopSelect"
+              value={selectedShopId || ''}
+              onChange={(e) => setSelectedShopId(e.target.value)}
+              className="p-3 bg-gray-50 border border-gray-200 rounded-lg w-full"
+            >
+              <option value="">All Shops</option>
+              {shops.map((shop) => (
+                <option key={shop._id} value={shop._id}>
+                  {shop.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6 mb-8">
-          {/* Site Name Input */}
           <div>
             <label htmlFor="siteName" className="block text-sm font-medium text-gray-700 mb-1">
               Site Name
@@ -240,8 +263,6 @@ export default function Settings() {
               className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-300 placeholder-gray-400 text-gray-800"
             />
           </div>
-
-          {/* Phone Input */}
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
               Phone
@@ -255,8 +276,6 @@ export default function Settings() {
               className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-300 placeholder-gray-400 text-gray-800"
             />
           </div>
-
-          {/* Opening Balance Input */}
           <div>
             <label htmlFor="openingBalance" className="block text-sm font-medium text-gray-700 mb-1">
               Opening Balance {settings.openingBalanceSet && '(Set, cannot be changed)'}
@@ -273,8 +292,6 @@ export default function Settings() {
               }`}
             />
           </div>
-
-          {/* Logo Upload */}
           <div>
             <label htmlFor="logo" className="block text-sm font-medium text-gray-700 mb-1">
               Site Logo
@@ -292,14 +309,10 @@ export default function Settings() {
                 className="flex items-center justify-center w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-all duration-300"
               >
                 <Upload size={20} className="text-indigo-600 mr-2" />
-                <span className="text-gray-600">
-                  {logoFile ? logoFile.name : 'Choose an image'}
-                </span>
+                <span className="text-gray-600">{logoFile ? logoFile.name : 'Choose an image'}</span>
               </label>
             </div>
           </div>
-
-          {/* Logo Preview */}
           <AnimatePresence>
             {(previewUrl || settings.logo) && (
               <motion.div
@@ -317,8 +330,6 @@ export default function Settings() {
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* Submit Button */}
           <motion.button
             type="submit"
             disabled={isLoading}
@@ -331,12 +342,9 @@ export default function Settings() {
           </motion.button>
         </form>
 
-        {/* Database Backup Section */}
         <div className="bg-indigo-50 p-4 rounded-lg shadow-sm border-t border-gray-200 pt-6">
           <h4 className="text-lg font-semibold text-indigo-800 mb-3">Database Backup</h4>
-
           <div className="flex flex-col gap-4">
-            {/* Create Backup Button */}
             <button
               onClick={handleCreateBackup}
               disabled={isLoading}
@@ -345,8 +353,6 @@ export default function Settings() {
             >
               {isLoading ? 'Creating...' : 'Create Backup'}
             </button>
-
-            {/* Restore Backup Section */}
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <select
                 value={selectedBackup}
@@ -357,13 +363,12 @@ export default function Settings() {
                 <option value="">Select a backup</option>
                 {backups.map((backup) => (
                   <option key={backup.filename} value={backup.filename}>
-                    {backup.filename} ({new Date(backup.createdAt).toLocaleString('en-US', {
+                    {backup.filename} ({new Date(backup.uploadedAt).toLocaleString('en-US', {
                       timeZone: 'Asia/Karachi',
                     })})
                   </option>
                 ))}
               </select>
-
               <button
                 onClick={handleRestoreBackup}
                 disabled={!selectedBackup || isLoading}
@@ -377,8 +382,6 @@ export default function Settings() {
                 {isLoading ? 'Restoring...' : 'Restore Backup'}
               </button>
             </div>
-
-            {/* Backup Status Message */}
             {backupStatus && (
               <motion.p
                 className={`text-sm ${backupStatus.type === 'success' ? 'text-green-600' : 'text-red-600'}`}

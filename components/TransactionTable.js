@@ -29,26 +29,26 @@ export default function TransactionTable({ filters, onEdit, onDelete, refresh })
   }, []);
 
   // Fetch transactions with pagination
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      setLoading(true);
-      setError('');
-      try {
-         const response = await api.get(
-        `/transactions?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}&customerId=${filters.customerId}&page=${currentPage}&limit=${itemsPerPage}`
+ // TransactionTable.js
+useEffect(() => {
+  const fetchTransactions = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await api.get(
+        `/transactions?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}&customerId=${filters.customerId}&page=${currentPage}&limit=${itemsPerPage}&shopId=${filters.shopId || ''}`
       );
-        setTransactions(response.data.transactions);
-        setPagination(response.data.pagination);
-      } catch (err) {
-        setError('Failed to load transactions. Please try again.');
-        console.error('Fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
-  }, [filters, currentPage, itemsPerPage, refresh]);
-
+      setTransactions(response.data.transactions);
+      setPagination(response.data.pagination);
+    } catch (err) {
+      setError('Failed to load transactions. Please try again.');
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  fetchTransactions();
+}, [filters, currentPage, itemsPerPage, refresh]);
   const handleSort = (key) => {
     setSortConfig((prev) => ({
       key,
@@ -246,7 +246,7 @@ export default function TransactionTable({ filters, onEdit, onDelete, refresh })
             </div>
           </th>
         ))}
-        {role === 'admin' && (
+        {role === 'admin' || role==='superadmin' && (
           <th className="p-2 text-left text-xs w-[90px]">Actions</th> 
         )}
       </tr>
@@ -286,7 +286,7 @@ export default function TransactionTable({ filters, onEdit, onDelete, refresh })
             {transaction.category || '—'}
           </td>
           <td className="p-2 truncate w-[100px]">{new Date(transaction.date).toLocaleDateString()}</td> {/* Added w-[100px] */}
-          {role === 'admin' && (
+          {role === 'admin' || role==='superadmin' && (
             <td className="p-0 w-[80px]"> {/* Reduced width from 100px to 80px */}
               <div className="flex gap-1">
                 <motion.button
@@ -472,7 +472,7 @@ export default function TransactionTable({ filters, onEdit, onDelete, refresh })
                   {renderImageActions(transaction)}
                 </div> */}
                 
-                {role === 'admin' && (
+                {role === 'admin' || role==='superadmin' && (
                   <div className="flex gap-3">
                     <motion.button
                       onClick={() => onEdit(transaction)}

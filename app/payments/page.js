@@ -1,3 +1,4 @@
+// pages/Transactions.js
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -10,29 +11,23 @@ import { formatCurrency, downloadCSV } from '../utils/helpers';
 import Fuse from 'fuse.js';
 import ReactDOM from 'react-dom';
 
-// Animation variants for consistent transitions
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
 };
+
 const DropdownPortal = ({ children, isOpen }) => {
   if (!isOpen) return null;
-  
-  return ReactDOM.createPortal(
-    children,
-    document.body
-  );
+  return ReactDOM.createPortal(children, document.body);
 };
+
 export const PAYMENT_METHODS = ['Credit Card', 'Debit Card', 'Bank Transfer', 'Cash', 'Other'];
-const errorVariants = {
-  hidden: { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } },
-};
 
 export default function Transactions() {
   const [suggestions, setSuggestions] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [CATEGORIES, setCategories] = useState([]);
+  const [shops, setShops] = useState([]);
   const [formData, setFormData] = useState({
     transactionType: '',
     customerId: '',
@@ -49,82 +44,19 @@ export default function Transactions() {
     isRecurring: false,
     image: null,
     user: null,
+    shopId: null,
   });
-const [filters, setFilters] = useState({
-  startDate: '',
-  endDate: '',
-  category: '',
-  customerId: '', // Added customerId
-}); 
-
-
-const [customerSearchTerm, setCustomerSearchTerm] = useState('');
-const [customerSearchResults, setCustomerSearchResults] = useState([]);
-const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
-const customerInputRef = useRef(null);
-
-// Initialize Fuse.js for customer search
-const customerFuse = new Fuse(customers, {
-  keys: ['name'],
-  threshold: 0.3,
-  includeScore: true,
-});
-
-// Handle customer search input change
-const handleCustomerSearchChange = (e) => {
-  const value = e.target.value;
-  setCustomerSearchTerm(value);
-
-  if (value.trim()) {
-    const results = customerFuse.search(value).map((result) => result.item);
-    setCustomerSearchResults(results);
-    setIsCustomerDropdownOpen(true);
-  } else {
-    setCustomerSearchResults(customers); // Show all customers when input is empty
-    setIsCustomerDropdownOpen(true);
-    setFilters({ ...filters, customerId: '' }); // Clear customer filter
-  }
-};
-
-// Handle customer selection for filter
-const handleCustomerFilterSelect = (customer) => {
-  setFilters({ ...filters, customerId: customer._id });
-  setCustomerSearchTerm(customer.name || 'All Customers');
-  setIsCustomerDropdownOpen(false);
-};
-
-// Handle click outside to close dropdown
-useEffect(() => {
-  const handleClickOutside = (event) => {
-    if (customerInputRef.current && !customerInputRef.current.contains(event.target)) {
-      setIsCustomerDropdownOpen(false);
-    }
-  };
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => document.removeEventListener('mousedown', handleClickOutside);
-}, []);
-
-// Initialize search term based on selected customer
-useEffect(() => {
-  if (filters.customerId) {
-    const selectedCustomer = customers.find((c) => c._id === filters.customerId);
-    if (selectedCustomer) {
-      setCustomerSearchTerm(selectedCustomer.name);
-    }
-  } else {
-    setCustomerSearchTerm('All Customers');
-  }
-}, [filters.customerId, customers]);
-
-// Open dropdown on input focus
-const handleInputFocus = () => {
-  setIsCustomerDropdownOpen(true);
-  if (!customerSearchTerm.trim()) {
-    setCustomerSearchResults(customers); // Show all customers when focused and input is empty
-  }
-};
-
-const [isModalOpen, setIsModalOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    startDate: '',
+    endDate: '',
+    category: '',
+    customerId: '',
+    shopId: '',
+  });
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [customerSearchResults, setCustomerSearchResults] = useState([]);
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [entryMode, setEntryMode] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -133,23 +65,37 @@ const [isModalOpen, setIsModalOpen] = useState(false);
   const [userid, setUserid] = useState(null);
   const [role, setRole] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const customerInputRef = useRef(null);
+  const inputRef = useRef(null);
+  const [searchResults, setSearchResults] = useState([]);
 
-  // Initialize user ID from localStorage
+  const customerFuse = new Fuse(customers, { keys: ['name'], threshold: 0.3, includeScore: true });
+const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
   useEffect(() => {
     const id = localStorage.getItem('userid');
     const userRole = localStorage.getItem('role');
+    const shopId = localStorage.getItem('shopId');
     if (userRole) setRole(userRole);
     if (id) setUserid(id);
+    if (shopId) {
+      setFormData((prev) => ({ ...prev, shopId }));
+      setFilters((prev) => ({ ...prev, shopId }));
+    }
+    if (userRole === 'superadmin') {
+      fetchShops();
+    }
   }, []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const fetchShops = async () => {
+    try {
+      const response = await api.get('/shops');
+      setShops(response.data);
+    } catch (err) {
+      console.error('Error fetching shops:', err);
+    }
+  };
 
-  // Update formData with user ID
-  useEffect(() => {
-    if (userid) setFormData((prev) => ({ ...prev, user: userid }));
-  }, [userid]);
-
-  // Fetch suggestions, customers, and categories
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -159,7 +105,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
         api.get('/customers'),
         api.get('/categories'),
       ]);
-
       setSuggestions(suggestionsRes.data);
       setCustomers(customersRes.data);
       setCategories(categoriesRes.data);
@@ -175,23 +120,67 @@ const [isModalOpen, setIsModalOpen] = useState(false);
     fetchData();
   }, [fetchData]);
 
-  // Handle transaction type selection
+  const handleCustomerSearchChange = (e) => {
+    const value = e.target.value;
+    setCustomerSearchTerm(value);
+    if (value.trim()) {
+      const results = customerFuse.search(value).map((result) => result.item);
+      setCustomerSearchResults(results);
+      setIsCustomerDropdownOpen(true);
+    } else {
+      setCustomerSearchResults(customers);
+      setIsCustomerDropdownOpen(true);
+      setFilters({ ...filters, customerId: '' });
+    }
+  };
+
+  const handleCustomerFilterSelect = (customer) => {
+    setFilters({ ...filters, customerId: customer._id });
+    setCustomerSearchTerm(customer.name || 'All Customers');
+    setIsCustomerDropdownOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (customerInputRef.current && !customerInputRef.current.contains(event.target)) {
+        setIsCustomerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (filters.customerId) {
+      const selectedCustomer = customers.find((c) => c._id === filters.customerId);
+      if (selectedCustomer) {
+        setCustomerSearchTerm(selectedCustomer.name);
+      }
+    } else {
+      setCustomerSearchTerm('All Customers');
+    }
+  }, [filters.customerId, customers]);
+
+  const handleInputFocus = () => {
+    setIsCustomerDropdownOpen(true);
+    if (!customerSearchTerm.trim()) {
+      setCustomerSearchResults(customers);
+    }
+  };
+
   const handleTransactionTypeSelect = (type) => {
     setFormData({ ...formData, transactionType: type, payable: '', receivable: '' });
     setEntryMode(null);
     setIsModalOpen(true);
   };
 
-  // Handle entry mode selection
   const handleEntryModeSelect = (mode) => {
     setEntryMode(mode);
   };
 
-  // Handle customer selection or creation
   const handleCustomerSelect = async (name) => {
     setFormData({ ...formData, customerName: name });
     if (!name) return;
-
     try {
       const { data } = await api.post('/customers/find-or-create', { name, phone: formData.phone });
       setFormData({ ...formData, customerId: data._id, customerName: data.name });
@@ -202,12 +191,12 @@ const [isModalOpen, setIsModalOpen] = useState(false);
     }
   };
 
-  // Add new customer
   const handleAddCustomer = async () => {
     try {
       const { data } = await api.post('/customers', {
         name: formData.customerName,
         phone: formData.phone,
+        shopId: formData.shopId,
       });
       setFormData({ ...formData, customerId: data._id, customerName: data.name });
       setCustomers([...customers, data]);
@@ -217,23 +206,17 @@ const [isModalOpen, setIsModalOpen] = useState(false);
     }
   };
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     try {
       const form = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== null && value !== '') form.append(key === 'paymentMethod' ? 'type' : key, value);
       });
-
       const endpoint = editingTransaction ? `/transactions/${editingTransaction._id}` : `/transactions`;
       const method = editingTransaction ? api.put : api.post;
-
       await method(endpoint, form, { headers: { 'Content-Type': 'multipart/form-data' } });
-
-      // Reset form and modal
       setFormData({
         transactionType: '',
         customerId: '',
@@ -250,18 +233,18 @@ const [isModalOpen, setIsModalOpen] = useState(false);
         isRecurring: false,
         image: null,
         user: userid,
+        shopId: formData.shopId,
       });
       setIsModalOpen(false);
       setEntryMode(null);
       setEditingTransaction(null);
-      setRefreshTrigger((prev) => prev + 1); // Trigger refresh for both table and dashboard
+      setRefreshTrigger((prev) => prev + 1);
     } catch (err) {
       setError(err.response?.data?.message || 'Error saving transaction.');
       console.error('Submit error:', err);
     }
   };
 
-  // Handle transaction edit
   const handleEdit = (transaction) => {
     setEditingTransaction(transaction);
     setFormData({
@@ -280,52 +263,28 @@ const [isModalOpen, setIsModalOpen] = useState(false);
       isRecurring: transaction.isRecurring,
       image: null,
       user: userid,
+      shopId: transaction.shopId,
     });
     setEntryMode('manual');
     setIsModalOpen(true);
   };
 
-  // Handle transaction deletion
   const handleDelete = async (id) => {
     try {
       await api.delete(`/transactions/${id}`);
-      setRefreshTrigger((prev) => prev + 1); // Trigger refresh for both table and dashboard
+      setRefreshTrigger((prev) => prev + 1);
     } catch (err) {
       setError('Error deleting transaction.');
       console.error('Delete error:', err);
     }
   };
 
-  // Apply recurring suggestion
-  const applySuggestion = (suggestion) => {
-    setFormData({
-      transactionType: suggestion.transactionType || 'payable',
-      customerId: '',
-      customerName: '',
-      phone: '',
-      totalAmount: suggestion.totalAmount || '',
-      payable: suggestion.payable || '',
-      receivable: suggestion.receivable || '',
-      description: suggestion.description,
-      category: suggestion.category,
-      paymentMethod: suggestion.type || '',
-      date: new Date().toISOString().split('T')[0],
-      dueDate: suggestion.dueDate ? suggestion.dueDate.split('T')[0] : new Date().toISOString().split('T')[0],
-      isRecurring: true,
-      image: null,
-      user: userid,
-    });
-    setEntryMode('manual');
-    setIsModalOpen(true);
-  };
-
-  // Export transactions to CSV
   const handleExport = async () => {
     try {
-        const response = await api.get(
-      `/transactions/export?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}&customerId=${filters.customerId}`,
-      { responseType: 'blob' }
-    );
+      const response = await api.get(
+        `/transactions/export?startDate=${filters.startDate}&endDate=${filters.endDate}&category=${filters.category}&customerId=${filters.customerId}&shopId=${filters.shopId}`,
+        { responseType: 'blob' }
+      );
       const transactions = response.data.transactions;
       const csvData = transactions.map((t) => ({
         Date: t.date,
@@ -337,6 +296,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
         DueDate: t.dueDate ? t.dueDate.split('T')[0] : '',
         Category: t.category,
         Description: t.description,
+        Shop: shops.find((s) => s._id === t.shopId)?.name || '',
       }));
       downloadCSV(csvData, 'transactions.csv');
     } catch (err) {
@@ -345,25 +305,13 @@ const [isModalOpen, setIsModalOpen] = useState(false);
     }
   };
 
-  const [searchResults, setSearchResults] = useState([]);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const inputRef = useRef(null);
+  const fuse = new Fuse(customers, { keys: ['name'], threshold: 0.3, includeScore: true });
 
-  // Initialize Fuse.js with customers
-  const fuse = new Fuse(customers, {
-    keys: ['name'],
-    threshold: 0.3,
-    includeScore: true,
-  });
-
-  // Handle input change and search
   const handleInputChange = (e) => {
     const value = e.target.value;
     setFormData({ ...formData, customerName: value });
-
     const customerExists = customers.some((c) => c.name.toLowerCase() === value.toLowerCase());
     setShowCustomerForm(!customerExists);
-
     if (value.trim()) {
       const results = fuse.search(value).map((result) => result.item);
       setSearchResults(results);
@@ -374,14 +322,12 @@ const [isModalOpen, setIsModalOpen] = useState(false);
     }
   };
 
-  // Handle selecting a customer from the dropdown
   const handleSelectCustomer = (customer) => {
     setFormData({ ...formData, customerId: customer._id, customerName: customer.name });
     setShowCustomerForm(false);
     setIsDropdownOpen(false);
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (inputRef.current && !inputRef.current.contains(event.target)) {
@@ -394,22 +340,16 @@ const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-28 px-4 sm:px-6 lg:px-8">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="max-w-7xl mx-auto space-y-8"
-      >
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="max-w-7xl mx-auto space-y-8">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-white tracking-tight">Transaction Management</h1>
           <p className="mt-2 text-lg text-gray-300">Track and manage your financial transactions seamlessly.</p>
         </div>
 
-        {/* Error Message */}
         <AnimatePresence>
           {error && (
             <motion.div
-              variants={errorVariants}
+              variants={{ hidden: { opacity: 0, scale: 0.95 }, visible: { opacity: 1, scale: 1, transition: { duration: 0.3 } } }}
               initial="hidden"
               animate="visible"
               exit="hidden"
@@ -421,129 +361,138 @@ const [isModalOpen, setIsModalOpen] = useState(false);
           )}
         </AnimatePresence>
 
-        {/* Summary Dashboard */}
-        {!loading && (
-          <motion.div variants={containerVariants}>
-            <SummaryDashboard filters={filters} refresh={refreshTrigger} />
-          </motion.div>
-        )}
+        <motion.div variants={containerVariants}>
+          <SummaryDashboard filters={filters} refresh={refreshTrigger} />
+        </motion.div>
 
-        {/* Filters and Actions */}
-      <motion.div
-  variants={containerVariants}
-  className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4 overflow-visible" // Added overflow-visible
->
-  <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-    <input
-      type="date"
-      value={filters.startDate}
-      onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-      className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-      aria-label="Start Date"
-      max={today}
-    />
-    <input
-      type="date"
-      value={filters.endDate}
-      onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-      className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-      aria-label="End Date"
-      max={today}
-    />
-    <select
-      value={filters.category}
-      onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-      className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-      aria-label="Category Filter"
-    >
-      <option value="">All Categories</option>
-      {CATEGORIES?.map((cat, index) => (
-        <option key={index} value={cat.name}>
-          {cat.name}
-        </option>
-      ))}
-    </select>
- <div className="relative w-full sm:w-auto" ref={customerInputRef}>
-  <input
-    type="text"
-    placeholder="Search customers..."
-    value={customerSearchTerm}
-    onChange={handleCustomerSearchChange}
-    onFocus={handleInputFocus}
-    className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition w-full pr-10"
-    aria-label="Customer Filter"
-  />
-  {customerSearchTerm && (
-    <button
-      type="button"
-      onClick={() => {
-        setCustomerSearchTerm('');
-        setFilters({ ...filters, customerId: '' });
-        setCustomerSearchResults(customers);
-        setIsCustomerDropdownOpen(true);
-      }}
-      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
-      aria-label="Clear customer search"
-    >
-      ✕
-    </button>
-  )}
-  {/* Dropdown for Search Results - FIXED Z-INDEX */}
-  <AnimatePresence>
-    {isCustomerDropdownOpen && (
-
-      <DropdownPortal isOpen={isCustomerDropdownOpen}>
-  <motion.div
-    initial={{ opacity: 0, y: -10 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -10 }}
-    className="fixed bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-    style={{
-      position: 'fixed',
-      top: customerInputRef.current?.getBoundingClientRect().bottom + window.scrollY + 4 || 0,
-      left: customerInputRef.current?.getBoundingClientRect().left + window.scrollX || 0,
-      width: customerInputRef.current?.offsetWidth || 'auto',
-      zIndex: 9999
-    }}
-  >
-    <div
-      className="px-4 py-2 text-white hover:bg-indigo-600 cursor-pointer transition-colors"
-      onClick={() => handleCustomerFilterSelect({ _id: '', name: 'All Customers' })}
-    >
-      All Customers
-    </div>
-    {customerSearchResults.map((customer) => (
-      <div
-        key={customer._id}
-        className="px-4 py-2 text-white hover:bg-indigo-600 cursor-pointer transition-colors"
-        onClick={() => handleCustomerFilterSelect(customer)}
-      >
-        {customer.name}
-      </div>
-    ))}
-  </motion.div>
-</DropdownPortal>
-    )}
-  </AnimatePresence>
-</div>
-  </div>
-  <div className="flex gap-4">
-    <button
-      onClick={() => setIsModalOpen(true)}
-      className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"
-      aria-label="Add Transaction"
-    >
-      Add Transaction
-    </button>
-    <button
-      onClick={handleExport}
-      className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
-      aria-label="Export to CSV"
-    >
-      Export CSV
-    </button>
-  </div>
-</motion.div>
+        <motion.div
+          variants={containerVariants}
+          className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl flex flex-col sm:flex-row justify-between items-center gap-4 overflow-visible"
+        >
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+              aria-label="Start Date"
+              max={new Date().toISOString().split('T')[0]}
+            />
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+              aria-label="End Date"
+              max={new Date().toISOString().split('T')[0]}
+            />
+            <select
+              value={filters.category}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+              className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+              aria-label="Category Filter"
+            >
+              <option value="">All Categories</option>
+              {CATEGORIES?.map((cat, index) => (
+                <option key={index} value={cat.name}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            {role === 'superadmin' && (
+              <select
+                value={filters.shopId}
+                onChange={(e) => setFilters({ ...filters, shopId: e.target.value })}
+                className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                aria-label="Shop Filter"
+              >
+                <option value="">All Shops</option>
+                {shops.map((shop) => (
+                  <option key={shop._id} value={shop._id}>
+                    {shop.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <div className="relative w-full sm:w-auto" ref={customerInputRef}>
+              <input
+                type="text"
+                placeholder="Search customers..."
+                value={customerSearchTerm}
+                onChange={handleCustomerSearchChange}
+                onFocus={handleInputFocus}
+                className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition w-full pr-10"
+                aria-label="Customer Filter"
+              />
+              {customerSearchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerSearchTerm('');
+                    setFilters({ ...filters, customerId: '' });
+                    setCustomerSearchResults(customers);
+                    setIsCustomerDropdownOpen(true);
+                  }}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  aria-label="Clear customer search"
+                >
+                  ✕
+                </button>
+              )}
+              <AnimatePresence>
+                {isCustomerDropdownOpen && (
+                  <DropdownPortal isOpen={isCustomerDropdownOpen}>
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="fixed bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                      style={{
+                        position: 'fixed',
+                        top: customerInputRef.current?.getBoundingClientRect().bottom + window.scrollY + 4 || 0,
+                        left: customerInputRef.current?.getBoundingClientRect().left + window.scrollX || 0,
+                        width: customerInputRef.current?.offsetWidth || 'auto',
+                        zIndex: 9999,
+                      }}
+                    >
+                      <div
+                        className="px-4 py-2 text-white hover:bg-indigo-600 cursor-pointer transition-colors"
+                        onClick={() => handleCustomerFilterSelect({ _id: '', name: 'All Customers' })}
+                      >
+                        All Customers
+                      </div>
+                      {customerSearchResults.map((customer) => (
+                        <div
+                          key={customer._id}
+                          className="px-4 py-2 text-white hover:bg-indigo-600 cursor-pointer transition-colors"
+                          onClick={() => handleCustomerFilterSelect(customer)}
+                        >
+                          {customer.name}
+                        </div>
+                      ))}
+                    </motion.div>
+                  </DropdownPortal>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"
+              aria-label="Add Transaction"
+            >
+              Add Transaction
+            </button>
+            <button
+              onClick={handleExport}
+              className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
+              aria-label="Export to CSV"
+            >
+              Export CSV
+            </button>
+          </div>
+        </motion.div>
 
         {loading && (
           <div className="text-center py-10">
@@ -565,13 +514,12 @@ const [isModalOpen, setIsModalOpen] = useState(false);
           </div>
         )}
 
-        {/* Recurring Suggestions */}
         {!loading && suggestions.length > 0 && (
-<motion.div 
-  variants={containerVariants}
-  className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl relative"
-  style={{ zIndex: 1 }} // Lower z-index for table container
->
+          <motion.div
+            variants={containerVariants}
+            className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl relative"
+            style={{ zIndex: 1 }}
+          >
             <h3 className="text-lg font-semibold text-white mb-4">Recurring Suggestions</h3>
             <ul className="space-y-3">
               {suggestions.map((s, index) => (
@@ -598,11 +546,8 @@ const [isModalOpen, setIsModalOpen] = useState(false);
           </motion.div>
         )}
 
-        {/* Transaction Table */}
         {!loading && (
-          <motion.div variants={containerVariants}
-          className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl z-[10]" // Added z-[10]
->
+          <motion.div variants={containerVariants} className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl z-[10]">
             <h3 className="text-lg font-semibold text-white mb-4">Recent Transactions</h3>
             <TransactionTable
               filters={filters}
@@ -613,7 +558,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
           </motion.div>
         )}
 
-        {/* Modal */}
         <Modal
           isOpen={isModalOpen}
           onClose={() => {
@@ -636,6 +580,7 @@ const [isModalOpen, setIsModalOpen] = useState(false);
               isRecurring: false,
               image: null,
               user: userid,
+              shopId: formData.shopId,
             });
             setError('');
             setShowCustomerForm(false);
@@ -694,7 +639,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   </motion.p>
                 )}
               </AnimatePresence>
-
               {entryMode === 'upload' && (
                 <input
                   type="file"
@@ -716,8 +660,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                 aria-label="Customer Name"
                 ref={inputRef}
               />
-
-              {/* Dropdown for Search Results */}
               <AnimatePresence>
                 {isDropdownOpen && searchResults.length > 0 && (
                   <motion.div
@@ -738,8 +680,6 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {/* New Customer Form */}
               <AnimatePresence>
                 {showCustomerForm && (
                   <motion.div
@@ -770,22 +710,22 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   </motion.div>
                 )}
               </AnimatePresence>
-            <input
-  type="number"
-  placeholder="Total Amount"
-  value={formData.totalAmount}
-  onChange={(e) => {
-    const totalAmount = e.target.value;
-    setFormData({
-      ...formData,
-      totalAmount,
-      [formData.transactionType === 'payable' ? 'payable' : 'receivable']: totalAmount,
-    });
-  }}
-  className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-  required
-  aria-label="Total Amount"
-/>
+              <input
+                type="number"
+                placeholder="Total Amount"
+                value={formData.totalAmount}
+                onChange={(e) => {
+                  const totalAmount = e.target.value;
+                  setFormData({
+                    ...formData,
+                    totalAmount,
+                    [formData.transactionType === 'payable' ? 'payable' : 'receivable']: totalAmount,
+                  });
+                }}
+                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                required
+                aria-label="Total Amount"
+              />
               <input
                 type="number"
                 placeholder={formData.transactionType === 'payable' ? 'Amount Payable' : 'Amount Receivable'}
@@ -835,37 +775,22 @@ const [isModalOpen, setIsModalOpen] = useState(false);
                   </option>
                 ))}
               </select>
-<input
-  type="date" // Changed from datetime-local to date
-  value={formData.date}
-  onChange={(e) => {
-    setFormData({ ...formData, date: e.target.value });
-  }}
-  className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-  aria-label="Transaction Date"
-  max={new Date().toISOString().split('T')[0]} // Restrict to today or earlier
-  required
-/>
-
-
-{/* <input
-  type="datetime-local"
-  value={formData.dueDate}
-  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-  className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-  aria-label="Due Date"
-/> */}
-
-              {/* <label className="flex items-center text-gray-200">
-                <input
-                  type="checkbox"
-                  checked={formData.isRecurring}
-                  onChange={(e) => setFormData({ ...formData, isRecurring: e.target.checked })}
-                  className="mr-2 text-indigo-400 focus:ring-indigo-400"
-                  aria-label="Recurring Transaction"
-                />
-                Recurring Transaction
-              </label> */}
+              <input
+                type="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                aria-label="Transaction Date"
+                max={new Date().toISOString().split('T')[0]}
+                required
+              />
+              <input
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                aria-label="Due Date"
+              />
               <button
                 type="submit"
                 className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"

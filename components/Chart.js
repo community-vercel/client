@@ -15,6 +15,7 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 export default function Chart({ type, data, options }) {
+  console.log('Chart data:', data);
   return (
     <div className="relative h-64">
       {type === 'bar' ? (

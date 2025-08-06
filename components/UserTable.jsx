@@ -1,3 +1,4 @@
+// components/UserTable.js
 'use client';
 
 import { useState } from 'react';
@@ -5,7 +6,7 @@ import { motion } from 'framer-motion';
 import UserForm from './UserForm';
 import DeleteConfirmModal from './DeleteConfirmModal';
 
-export default function UserTable({ users, onUpdate, onDelete }) {
+export default function UserTable({ users, onUpdate, onDelete, shops, role }) {
   const [editUser, setEditUser] = useState(null);
   const [deleteUserId, setDeleteUserId] = useState(null);
 
@@ -23,8 +24,6 @@ export default function UserTable({ users, onUpdate, onDelete }) {
     setDeleteUserId(null);
   };
 
-  const role = localStorage.getItem('role');
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -32,12 +31,13 @@ export default function UserTable({ users, onUpdate, onDelete }) {
       transition={{ duration: 0.5 }}
       className="bg-white shadow-lg rounded-xl mt-2 w-full"
     >
-      <div className="overflow-x-hidden">
+      <div className="overflow-x-auto">
         <table className="w-full table-fixed">
           <thead>
             <tr className="bg-green-800 text-white">
               <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Username</th>
               <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Role</th>
+              <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Shop</th>
               <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Created At</th>
               <th className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-left font-semibold text-sm sm:text-base truncate">Actions</th>
             </tr>
@@ -62,9 +62,14 @@ export default function UserTable({ users, onUpdate, onDelete }) {
                   </span>
                 </td>
                 <td className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-sm sm:text-base truncate">
+{typeof user.shopId === 'object'
+  ? user.shopId?.name || 'N/A'
+  : (shops.find(shop => shop._id === user.shopId)?.name || 'Unknown Shop')}
+                </td>
+                <td className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 text-sm sm:text-base truncate">
                   {new Date(user.createdAt).toLocaleDateString('en-US', { timeZone: 'Asia/Karachi' })}
                 </td>
-                {role === 'admin' && (
+                {role === 'superadmin' && (
                   <td className="py-2 px-2 sm:px-3 md:px-4 lg:px-6 flex flex-col sm:flex-col md:flex-row md:space-x-3 gap-2">
                     <button
                       onClick={() => handleEdit(user)}
@@ -91,6 +96,8 @@ export default function UserTable({ users, onUpdate, onDelete }) {
           onSubmit={handleUpdate}
           onCancel={() => setEditUser(null)}
           isEdit
+          shops={shops}
+          role={role}
         />
       )}
       {deleteUserId && (

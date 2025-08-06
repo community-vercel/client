@@ -1,23 +1,46 @@
+// components/UserForm.js
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 
-export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false }) {
-  const [formData, setFormData] = useState({
-    username: user.username || '',
-    password: '',
-    role: user.role || 'user',
-  });
+export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false, shops = [], role, selectedShopId }) {
+const [formData, setFormData] = useState({
+  username: user.username || '',
+  password: '',
+  role: user.role || 'user',
+  shopId: isEdit
+    ? (typeof user.shopId === 'object' ? user.shopId._id : user.shopId || '')
+    : (role === 'superadmin' ? selectedShopId || '' : ''),
+});
+
+
+  console.log("UserForm data:", user,formData,isEdit, role, selectedShopId);
+  useEffect(() => {
+    if (role === 'superadmin' && !isEdit) {
+      setFormData((prev) => ({ ...prev, shopId: selectedShopId || '' }));
+    }
+  }, [selectedShopId, role, isEdit]);
 
   const handleChange = (e) => {
+    console.log('Form field changed:', e.target.name, e.target.value);
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!formData.username || (!isEdit && !formData.password)) {
+      toast.error('Username and password are required', { duration: 4000 });
+      return;
+    }
+    if (role === 'superadmin' && !formData.shopId && !isEdit) {
+      toast.error('Please select a shop', { duration: 4000 });
+      return;
+    }
+    console.log('Submitting form with data:', formData);
     onSubmit(formData);
-    setFormData({ username: '', password: '', role: 'user' }); // Reset form after submission
+    setFormData({ username: '', password: '', role: 'user', shopId: role === 'superadmin' ? selectedShopId || '' : '' });
   };
 
   return (
@@ -28,7 +51,7 @@ export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false
       className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-4 sm:p-4 md:p-6 lg:p-6 rounded-xl shadow-xl space-y-4 w-full"
       onSubmit={handleSubmit}
     >
-      <h2 className="text-lg sm:text-lg md:text-xl lg:text-xl font-semibold text-gray-800 mb-4">
+      <h2 className="text-lg sm:text-lg md:text-xl lg:text-xl font-semibold text-white mb-4">
         {isEdit ? 'Edit User' : 'Add New User'}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-4">
@@ -39,7 +62,7 @@ export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false
             name="username"
             value={formData.username}
             onChange={handleChange}
-            className="mt-1 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors text-white"
+            className="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors text-white"
             required
           />
         </div>
@@ -51,7 +74,7 @@ export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="mt-1 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors text-white"
+              className="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors text-white"
               required
             />
           </div>
@@ -62,12 +85,32 @@ export default function UserForm({ user = {}, onSubmit, onCancel, isEdit = false
             name="role"
             value={formData.role}
             onChange={handleChange}
-            className="mt-1 w-full p-3 text-gray-200 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors"
+            className="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors text-white"
           >
-            <option className='text-gray-800' value="user">User</option>
-            <option className='text-gray-800' value="admin">Admin</option>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
           </select>
         </div>
+        {role === 'superadmin' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-200">Shop</label>
+         <select
+  name="shopId"
+  value={formData.shopId}
+  onChange={handleChange}
+              className="mt-1 w-full p-3 bg-gray-700 border border-gray-600 rounded-md focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition-colors text-white"
+  required={!isEdit}
+>
+  <option value="">Select a Shop</option>
+  {shops.map((shop) => (
+    <option key={shop._id} value={shop._id}>
+      {shop.name}
+    </option>
+  ))}
+</select>
+
+          </div>
+        )}
       </div>
       <div className="mt-4 flex flex-col sm:flex-col md:flex-row md:space-x-4 gap-4">
         <button

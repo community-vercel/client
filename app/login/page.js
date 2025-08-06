@@ -1,12 +1,11 @@
 'use client';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login, register } from '../../lib/api';
 import { motion } from 'framer-motion';
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true); // Toggle between login and register
+  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,15 +18,13 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        // Login
         const res = await login({ username: formData.username, password: formData.password });
         localStorage.setItem('token', res.data.token);
-                  localStorage.setItem('userid', res.data.user.id);
-        // Optionally, you can store user role if needed
-        localStorage.setItem('role', res.data.user.role ); 
+        localStorage.setItem('userid', res.data.user.id);
+        localStorage.setItem('role', res.data.user.role);
+        localStorage.setItem('shopId', res.data.user.shopId); // Store shopId
         router.push('/dashboard');
       } else {
-        // Register
         if (formData.password !== formData.confirmPassword) {
           setError('Passwords do not match');
           setLoading(false);
@@ -35,11 +32,13 @@ export default function AuthPage() {
         }
         const res = await register({ username: formData.username, password: formData.password });
         localStorage.setItem('token', res.data.token);
-                        localStorage.setItem('userid', res.data.user.id);
-
+        localStorage.setItem('userid', res.data.user.id);
+        localStorage.setItem('role', res.data.user.role);
+        localStorage.setItem('shopId', res.data.user.shopId); // Store shopId
         router.push('/dashboard');
       }
     } catch (err) {
+      console.error('Auth error:', err);
       setError(err.response?.data?.error || (isLogin ? 'Login failed' : 'Registration failed'));
       setLoading(false);
     }
@@ -137,10 +136,19 @@ export default function AuthPage() {
                 ></path>
               </svg>
             ) : null}
-            {loading ? 'Processing...' : isLogin ? 'Login' :''}
+            {loading ? 'Processing...' : isLogin ? 'Login' : 'Register'}
           </button>
         </form>
-      
+        
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={handleToggle}
+            className="text-purple-300 hover:text-white transition duration-200"
+          >
+            {isLogin ? "Don't have an account? Register" : 'Already have an account? Login'}
+          </button>
+        </div>
       </motion.div>
     </div>
   );

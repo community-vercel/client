@@ -1,3 +1,4 @@
+// Fixed Customer Frontend Component
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -28,7 +29,7 @@ const errorVariants = {
 const REPORT_FORMATS = [
   { value: 'pdf', label: 'PDF' },
   { value: 'excel', label: 'Excel' },
-  { value: 'json', label: 'Summary' }, // Added JSON format for inline summary
+  { value: 'json', label: 'Summary' },
 ];
 
 export default function Customers() {
@@ -42,49 +43,93 @@ export default function Customers() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [shopId, setShopId] = useState(null); // ADDED: Track shopId
+  const [role, setRole] = useState(null); // ADDED: Track user role
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [customerSummaries, setCustomerSummaries] = useState({}); // New state for summaries
-  const [expandedCustomer, setExpandedCustomer] = useState(null); // Track expanded customer for summary
+  const [customerSummaries, setCustomerSummaries] = useState({});
+  const [expandedCustomer, setExpandedCustomer] = useState(null);
 
-  // Initialize userId
+  // FIXED: Initialize user data from localStorage
   useEffect(() => {
     const id = localStorage.getItem('userid');
+    const userShopId = localStorage.getItem('shopId');
+    const userRole = localStorage.getItem('role');
+    
+    console.log('User data from localStorage:', { id, userShopId, userRole }); // Debug log
+    
     if (id) setUserId(id);
+    if (userShopId) setShopId(userShopId);
+    if (userRole) setRole(userRole);
   }, []);
 
-  // Fetch customers with debounced search
+  // FIXED: Fetch customers with proper shopId parameter
   const fetchCustomers = useCallback(
     async (searchQuery) => {
+      if (!shopId && role !== 'superadmin') {
+        console.log('No shopId available, skipping fetch'); // Debug log
+        setLoading(false);
+        return;
+      }
+      
       setLoading(true);
       setError('');
+      
       try {
-        const { data } = await api.get(`/customers?search=${searchQuery}`);
+        // FIXED: Include shopId in the request for proper filtering
+        const queryParams = new URLSearchParams();
+        if (searchQuery) queryParams.append('search', searchQuery);
+        if (shopId) queryParams.append('shopId', shopId);
+        
+        const url = `/customers${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+        console.log('Fetching customers from:', url); // Debug log
+        
+        const { data } = await api.get(url);
+        console.log('Received customers:', data); // Debug log
         setCustomers(data);
       } catch (err) {
+        console.error('Error fetching customers:', err); // Debug log
         setError(err.response?.data?.message || 'Failed to load customers.');
       } finally {
         setLoading(false);
       }
     },
-    []
+    [shopId, role]
   );
 
   const debouncedFetchCustomers = useCallback(debounce(fetchCustomers, 300), [fetchCustomers]);
 
+  // FIXED: Only fetch when we have required data
   useEffect(() => {
-    debouncedFetchCustomers(search);
+    if (shopId || role === 'superadmin') {
+      debouncedFetchCustomers(search);
+    }
     return () => debouncedFetchCustomers.cancel();
-  }, [search, refreshTrigger, debouncedFetchCustomers]);
+  }, [search, refreshTrigger, shopId, role, debouncedFetchCustomers]);
 
-  // Handle customer form submission
+  // FIXED: Include shopId in customer creation
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    if (!shopId && role !== 'superadmin') {
+      setError('Shop ID is required to create customers.');
+      return;
+    }
+    
     try {
-      await api.post('/customers', { ...formData, user: userId });
+      const customerData = { 
+        ...formData, 
+        user: userId,
+        shopId: shopId // FIXED: Include shopId
+      };
+      
+      console.log('Creating customer with data:', customerData); // Debug log
+      
+      await api.post('/customers', customerData);
       setFormData({ name: '', phone: '', address: '' });
       setRefreshTrigger((prev) => prev + 1);
     } catch (err) {
+      console.error('Error creating customer:', err); // Debug log
       setError(err.response?.data?.message || 'Failed to add customer.');
     }
   };
@@ -140,14 +185,12 @@ export default function Customers() {
     try {
       const { data } = await api.get(`/reports/summary?customerId=${customerId}&format=${reportFormat}`);
       if (reportFormat === 'json') {
-        // Store summary data for inline display
         setCustomerSummaries((prev) => ({
           ...prev,
           [customerId]: data,
         }));
-        setExpandedCustomer(customerId); // Expand the customer's summary
+        setExpandedCustomer(customerId);
       } else {
-        // Download PDF or Excel
         window.open(data.url, '_blank');
       }
     } catch (err) {
@@ -161,10 +204,10 @@ export default function Customers() {
       await api.post('/transactions', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setRefreshTrigger((prev) => prev + 1); // Refresh customers to update balances
+      setRefreshTrigger((prev) => prev + 1);
       setCustomerSummaries((prev) => {
         const updated = { ...prev };
-        delete updated[form.customerId]; // Clear summary to force refresh
+        delete updated[form.customerId];
         return updated;
       });
     } catch (err) {
@@ -213,6 +256,24 @@ export default function Customers() {
     },
   };
 
+  // ADDED: Show loading/error states for missing shopId
+  if (!shopId && role !== 'superadmin' && !loading) {
+    return (
+      <section className="bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-10 px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-7xl mx-auto">
+          <div className="text-center">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+              Customer Management
+            </h1>
+            <div className="mt-8 bg-red-900 bg-opacity-50 text-red-200 p-4 rounded-lg">
+              <p>No shop ID found. Please ensure you are properly logged in and assigned to a shop.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-10 px-4 sm:px-6 lg:px-8">
       <motion.div
@@ -229,6 +290,12 @@ export default function Customers() {
           <p className="mt-2 text-base md:text-lg text-gray-300">
             Efficiently manage your customer relationships and financials.
           </p>
+          {/* ADDED: Debug info (remove in production) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-2 text-sm text-gray-400">
+              Shop ID: {shopId || 'Not set'} | Role: {role || 'Not set'} | User ID: {userId || 'Not set'}
+            </div>
+          )}
         </header>
 
         {/* Error Message */}
@@ -383,7 +450,12 @@ export default function Customers() {
         {!loading && (
           <motion.div variants={containerVariants} className="space-y-4">
             {customers.length === 0 ? (
-              <p className="text-center text-gray-300">No customers found.</p>
+              <div className="text-center text-gray-300 bg-gray-800 bg-opacity-60 backdrop-blur-lg p-8 rounded-xl">
+                <p className="text-lg">No customers found.</p>
+                <p className="text-sm mt-2">
+                  {search ? 'Try adjusting your search criteria.' : 'Add your first customer using the form above.'}
+                </p>
+              </div>
             ) : (
               customers.map((customer) => {
                 const summary = customerSummaries[customer._id];
@@ -405,7 +477,7 @@ export default function Customers() {
                   <motion.div
                     key={customer._id}
                     variants={itemVariants}
-                    className="p-0 bg-gray-800 bg-opacity-60 backdrop-blur-lg rounded-xl shadow-xl space-y-4 hover:bg-opacity-70 transition"
+                    className="p-6 bg-gray-800 bg-opacity-60 backdrop-blur-lg rounded-xl shadow-xl space-y-4 hover:bg-opacity-70 transition"
                   >
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div className="flex items-center space-x-4">
@@ -454,6 +526,7 @@ export default function Customers() {
                         </button>
                       </div>
                     </div>
+
                     {/* Customer Summary Section */}
                     <AnimatePresence>
                       {summary && expandedCustomer === customer._id && (

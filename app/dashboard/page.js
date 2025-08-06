@@ -157,65 +157,76 @@ export default function Dashboard() {
       console.error('Error fetching shops:', err);
     }
   };
+const fetchData = useCallback(async () => {
+  if (!filters.shopId && role !== 'superadmin') {
+    setError('No shop selected. Please log in again.');
+    return;
+  }
 
-  const fetchData = useCallback(async () => {
-    if (!filters.shopId && role !== 'superadmin') {
-      setError('No shop selected. Please log in again.');
-      // router.push('/login');
-      return;
+  setLoading(true);
+  setError('');
+  try {
+    const params = { ...filters };
+    if (role === 'superadmin') {
+      params.shopId = filters.shopId || 'all'; // Send 'all' for superadmin when no shop is selected
+    } else {
+      params.shopId = filters.shopId; // Use specific shopId for non-superadmins
     }
 
-    setLoading(true);
-    setError('');
-    try {
-      const promises = [
-        api.get('/dashboard/summary', { params: { ...filters, shopId: filters.shopId || undefined } }),
-        api.get('/customers', { params: { shopId: filters.shopId || undefined } }),
-        api.get('/categories', { params: { shopId: filters.shopId || undefined } }),
-      ];
+    const promises = [
+      api.get('/dashboard/summary', { params }),
+      api.get('/customers', { params }), // Fetch customers with shopId or 'all'
+      api.get('/categories', { params }),
+    ];
 
-      if (filters.shopId) {
-        promises.push(api.get('/settings', { params: { shopId: filters.shopId } }));
-      }
-
-      const responses = await Promise.all(promises.map((p) => p.catch((e) => e)));
-
-      const dashboardRes = responses[0];
-      const customersRes = responses[1];
-      const categoriesRes = responses[2];
-      const settingsRes = responses[3];
-console.log("dashaord",dashboardRes)
-      if (dashboardRes instanceof Error) throw dashboardRes;
-      if (customersRes instanceof Error) throw customersRes;
-      if (categoriesRes instanceof Error) throw categoriesRes;
-
-      setData({
-        totalPayables: dashboardRes.data.totalPayables || 0,
-        totalReceivables: dashboardRes.data.totalReceivables || 0,
-        balance: dashboardRes.data.balance || 0,
-        openingBalance: dashboardRes.data.openingBalance || 0,
-        alerts: dashboardRes.data.alerts || [],
-      });
-      // setCustomers(customersRes.data || []);
-      setCategories(categoriesRes.data || []);
-      setStoreName(filters.shopId && settingsRes?.data?.siteName ? settingsRes.data.siteName : 'All Shops');
-    } catch (error) {
-      if (error.response?.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('userid');
-        localStorage.removeItem('role');
-        localStorage.removeItem('shopId');
-        // router.push('/login');
-      } else if (error.response?.status === 404 && error.response?.data?.message === 'Settings not found for this shop') {
-        setError('Settings not found for this shop. Please contact support or create settings.');
-      } else {
-        setError(error.response?.data?.message || 'Failed to fetch dashboard data. Please try again.');
-      }
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
+    if (filters.shopId && filters.shopId !== 'all') {
+      promises.push(api.get('/settings', { params: { shopId: filters.shopId } }));
+    } else {
+      promises.push(Promise.resolve(null)); // No settings fetch for 'all' shops
     }
-  }, [filters, role]);
+
+    const responses = await Promise.all(promises.map((p) => p.catch((e) => e)));
+
+    const dashboardRes = responses[0];
+    const customersRes = responses[1];
+    const categoriesRes = responses[2];
+    const settingsRes = responses[3];
+
+    if (dashboardRes instanceof Error) throw dashboardRes;
+    if (customersRes instanceof Error) throw customersRes;
+    if (categoriesRes instanceof Error) throw categoriesRes;
+
+    setData({
+      totalPayables: dashboardRes.data.totalPayables || 0,
+      totalReceivables: dashboardRes.data.totalReceivables || 0,
+      balance: dashboardRes.data.balance || 0,
+      openingBalance: dashboardRes.data.openingBalance || 0,
+      alerts: dashboardRes.data.alerts || [],
+    });
+    setCustomers(customersRes.data || []); // Uncommented to set customers
+    setCategories(categoriesRes.data || []);
+    setStoreName(
+      filters.shopId && filters.shopId !== 'all' && settingsRes?.data?.siteName
+        ? settingsRes.data.siteName
+        : 'All Shops'
+    );
+  } catch (error) {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userid');
+      localStorage.removeItem('role');
+      localStorage.removeItem('shopId');
+      router.push('/login');
+    } else if (error.response?.status === 404 && error.response?.data?.message === 'Settings not found for this shop') {
+      setError('Settings not found for this shop. Please contact support or create settings.');
+    } else {
+      setError(error.response?.data?.message || 'Failed to fetch dashboard data. Please try again.');
+    }
+    console.error('Error fetching dashboard data:', error);
+  } finally {
+    setLoading(false);
+  }
+}, [filters, role, router]);
 const fetchDailyReport = async (date) => {
   try {
     setIsLoading(true);

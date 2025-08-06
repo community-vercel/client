@@ -146,7 +146,7 @@ export default function AuthPage() {
             onClick={handleToggle}
             className="text-purple-300 hover:text-white transition duration-200"
           >
-            {isLogin ? "Don't have an account? Register" : 'Already have an account? Login'}
+            {/* {isLogin ? "Don't have an account? Register" : 'Already have an account? Login'} */}
           </button>
         </div>
       </motion.div>

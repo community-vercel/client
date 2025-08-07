@@ -161,14 +161,30 @@ export const useQuotation = () => {
   };
 
   const handleShareWhatsApp = () => {
-    if (pdfCustomer && pdfCustomer.phone) {
-      const message = `Dear ${pdfCustomer.name}, please find your quotation here: ${pdfUrl}\nTotal: PKR ${calculateQuotationTotal()}`;
-      const whatsappUrl = `https://wa.me/${'03239119309'}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
-    } else {
-      toast.error('Customer phone number not available for WhatsApp sharing');
+ 
+    // Clean the phone number - remove spaces, dashes, and ensure proper format
+    let cleanPhone = '03239119309';
+    
+    // Handle Pakistani phone numbers
+    if (cleanPhone.startsWith('0')) {
+      // Convert 03xx format to +923xx format
+      cleanPhone = '92' + cleanPhone.substring(1);
+    } else if (!cleanPhone.startsWith('92')) {
+      // Add country code if missing
+      cleanPhone = '92' + cleanPhone;
     }
-  };
+    
+    const message = `Dear ${pdfCustomer.name},\n\nPlease find your quotation attached: ${pdfUrl}\n\nTotal Amount: PKR ${calculateQuotationTotal()}\n\nThank you for your business!`;
+    
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    
+    // Open WhatsApp in new tab
+    window.open(whatsappUrl, '_blank');
+    
+    toast.success(`Opening WhatsApp for ${pdfCustomer.name}`);
+
+};
+
 
   const filteredCustomers = customerSearch
     ? customerFuse.search(customerSearch).map((result) => result.item)

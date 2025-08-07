@@ -6,9 +6,6 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Package, BarChart3, Palette, Plus, Menu, X, FileText } from 'lucide-react';
 import Link from 'next/link';
-import QuotationForm from '../../components/QuotationForm';
-import QuotationPdfPreview from '../../components/QuotationPdfPreview';
-import { useQuotation } from '../../hooks/useQuotation';
 
 export default function ManageProducts() {
   const [products, setProducts] = useState([]);
@@ -38,32 +35,6 @@ export default function ManageProducts() {
   const router = useRouter();
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const categories = ['gallon', 'quarter', 'drums', 'liters', 'Dibbi'];
-
-  // Quotation Hook
- const {
-    isQuotationModalOpen,
-    setIsQuotationModalOpen,
-    isPdfModalOpen,
-    setIsPdfModalOpen,
-    customers,
-    products: quotationProducts,
-    filteredProducts,
-    shops,
-    quotationForm,
-    setQuotationForm,
-    pdfUrl,
-    pdfCustomer,
-    customerSearch,
-    setCustomerSearch,
-    productSearch,
-    setProductSearch,
-    handleQuotationChange,
-    addProductRow,
-    removeProductRow,
-    calculateQuotationTotal,
-    handleSubmitQuotation,
-    handleShareWhatsApp,
-  } = useQuotation();
 
 
 
@@ -361,10 +332,9 @@ export default function ManageProducts() {
     { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-4 h-4" />, color: 'bg-orange-500' },
     {
       title: 'Create Quotation',
-      href: '#',
+      href: '/quotations',
       icon: <FileText className="w-4 h-4" />,
       color: 'bg-teal-500',
-      onClick: () => setIsQuotationModalOpen(true),
     },
   ];
 
@@ -403,7 +373,7 @@ export default function ManageProducts() {
             <div className="w-2 h-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full"></div>
             Quick Actions
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action, index) =>
               action.onClick ? (
                 <button
@@ -443,38 +413,7 @@ export default function ManageProducts() {
         </div>
       )}
 
-      {/* Quotation Form Modal */}
-   <QuotationForm
-        isOpen={isQuotationModalOpen}
-        onClose={() => setIsQuotationModalOpen(false)}
-        customers={customers}
-        products={quotationProducts}
-        filteredProducts={filteredProducts}
-        shops={shops}
-        quotationForm={quotationForm}
-        setQuotationForm={setQuotationForm}
-        handleQuotationChange={handleQuotationChange}
-        addProductRow={addProductRow}
-        removeProductRow={removeProductRow}
-        calculateQuotationTotal={calculateQuotationTotal}
-        handleSubmitQuotation={handleSubmitQuotation}
-        customerSearch={customerSearch}
-        setCustomerSearch={setCustomerSearch}
-        productSearch={productSearch}
-        setProductSearch={setProductSearch}
-      />
-
-      {/* PDF Preview Modal */}
-      <QuotationPdfPreview
-        isOpen={isPdfModalOpen}
-        onClose={() => setIsPdfModalOpen(false)}
-        pdfUrl={pdfUrl}
-        pdfCustomer={pdfCustomer}
-        calculateQuotationTotal={calculateQuotationTotal}
-        handleShareWhatsApp={handleShareWhatsApp}
-        products={quotationProducts}
-        quotationForm={quotationForm}
-      />
+  
 
       {/* Main Content */}
       <main className="mt-6 px-4">

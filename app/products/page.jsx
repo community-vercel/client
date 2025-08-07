@@ -49,7 +49,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (token) {
       fetchProducts();
-      fetchStats();
+   
     } else {
       router.push('/auth/signin');
     }
@@ -70,25 +70,13 @@ export default function Dashboard() {
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/items/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setStats(res.data || { totalItems: 0, lowStock: 0, totalValue: 0 });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-      toast.error(error.response?.data?.message || 'Failed to load stats', { autoClose: 3000 });
-    }
-  };
-
   const handleScan = async (barcode) => {
     try {
       await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/items/scan/${barcode}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchProducts();
-      fetchStats();
+    
       toast.success(`Barcode ${barcode} scanned successfully`, { autoClose: 2000 });
     } catch (error) {
       console.error('Error scanning barcode:', error);
@@ -133,7 +121,7 @@ export default function Dashboard() {
     },
     {
       title: 'Create Quotation',
-      onClick: () => setIsQuotationModalOpen(true),
+      href:'/quotations',
       icon: <FileText className="w-6 h-6" />,
       color: 'from-teal-500 to-cyan-600',
       hoverColor: 'hover:from-teal-600 hover:to-cyan-700',
@@ -241,22 +229,7 @@ export default function Dashboard() {
       </header>
 
       <div className="p-6 max-w-7xl mx-auto space-y-8">
-        {/* Stats Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { title: 'Total Items', value: stats.totalItems, color: 'from-blue-500 to-indigo-600' },
-            { title: 'Low Stock', value: stats.lowStock, color: 'from-orange-500 to-red-600' },
-            { title: 'Total Value', value: `PKR ${stats.totalValue.toFixed(2)}`, color: 'from-emerald-500 to-teal-600' },
-          ].map((stat, index) => (
-            <div
-              key={index}
-              className={`bg-gradient-to-r ${stat.color} rounded-2xl p-6 text-white shadow-lg transform hover:scale-105 transition-all duration-300 animate-in fade-in`}
-            >
-              <h3 className="text-sm font-medium">{stat.title}</h3>
-              <p className="text-2xl font-bold">{stat.value}</p>
-            </div>
-          ))}
-        </div>
+       
 
         {/* Quick Actions Section */}
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 animate-in fade-in">

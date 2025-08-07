@@ -8,9 +8,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import ProductList from '../../components/ProductList';
 import BarcodeScanner from '../../components/BarcodeScanner';
 import { Package, Scan, BarChart3, Palette, Settings, Menu, X, Plus, RefreshCw, FileText, LogOut } from 'lucide-react';
-import QuotationForm from '../../components/QuotationForm';
-import QuotationPdfPreview from '../../components/QuotationPdfPreview';
-import { useQuotation } from '../../hooks/useQuotation';
 
 export default function Dashboard() {
   const [products, setProducts] = useState([]);
@@ -21,30 +18,7 @@ export default function Dashboard() {
   const router = useRouter();
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
- const {
-    isQuotationModalOpen,
-    setIsQuotationModalOpen,
-    isPdfModalOpen,
-    setIsPdfModalOpen,
-    customers,
-    products: quotationProducts,
-    filteredProducts,
-    shops,
-    quotationForm,
-    setQuotationForm,
-    pdfUrl,
-    pdfCustomer,
-    customerSearch,
-    setCustomerSearch,
-    productSearch,
-    setProductSearch,
-    handleQuotationChange,
-    addProductRow,
-    removeProductRow,
-    calculateQuotationTotal,
-    handleSubmitQuotation,
-    handleShareWhatsApp,
-  } = useQuotation();
+ 
 
   useEffect(() => {
     if (token) {
@@ -313,36 +287,8 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
-             <QuotationForm
-          isOpen={isQuotationModalOpen}
-          onClose={() => setIsQuotationModalOpen(false)}
-          customers={customers}
-          products={quotationProducts}
-          filteredProducts={filteredProducts}
-          shops={shops}
-          quotationForm={quotationForm}
-          handleQuotationChange={handleQuotationChange}
-          addProductRow={addProductRow}
-          removeProductRow={removeProductRow}
-          calculateQuotationTotal={calculateQuotationTotal}
-          handleSubmitQuotation={handleSubmitQuotation}
-          customerSearch={customerSearch}
-          setCustomerSearch={setCustomerSearch}
-          productSearch={productSearch}
-          setProductSearch={setProductSearch}
-        />
+         
 
-        {/* PDF Preview Modal */}
-           <QuotationPdfPreview
-        isOpen={isPdfModalOpen}
-        onClose={() => setIsPdfModalOpen(false)}
-        pdfUrl={pdfUrl}
-        pdfCustomer={pdfCustomer}
-        calculateQuotationTotal={calculateQuotationTotal}
-        handleShareWhatsApp={handleShareWhatsApp}
-        products={quotationProducts}
-        quotationForm={quotationForm}
-      />
           <div className="p-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">

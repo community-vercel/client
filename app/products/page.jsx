@@ -63,10 +63,8 @@ export default function Dashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setProducts(res.data.items || []);
-      toast.success('Products loaded successfully', { autoClose: 2000 });
     } catch (error) {
       console.error('Error fetching products:', error);
-      toast.error(error.response?.data?.message || 'Failed to load products', { autoClose: 3000 });
     } finally {
       setIsLoading(false);
     }

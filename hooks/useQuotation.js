@@ -21,6 +21,24 @@ export const useQuotation = () => {
   const [productSearch, setProductSearch] = useState({});
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+useEffect(() => {
+  if (!isQuotationModalOpen) {
+    setQuotationForm({
+      customerId: '',
+      shopId: localStorage.getItem('role') === 'superadmin' ? 'all' : localStorage.getItem('shopId') || '',
+      products: [
+        {
+          productId: '',
+          quantity: 1,
+          costPrice: 0,
+          retailPrice: 0,
+          discountPercentage: 0,
+          salePrice: 0,
+        },
+      ],
+    });
+  }
+}, [isQuotationModalOpen]);
 
   // Fuse.js instances
   const customerFuse = new Fuse(customers, {

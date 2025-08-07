@@ -72,16 +72,16 @@ export default function Transactions() {
   const customerFuse = new Fuse(customers, { keys: ['name'], threshold: 0.3, includeScore: true });
 
   // Initialize user data and shop context
-  useEffect(() => {
+ useEffect(() => {
     const initializeUserData = async () => {
       try {
         const id = localStorage.getItem('userid');
         const userRole = localStorage.getItem('role');
         const shopId = localStorage.getItem('shopId');
-        
+
         if (userRole) setRole(userRole);
         if (id) setUserid(id);
-        
+
         if (userRole === 'superadmin') {
           await fetchShops();
           // For superadmin, set initial filter to 'all' or first shop
@@ -89,18 +89,26 @@ export default function Transactions() {
             setFilters(prev => ({ ...prev, shopId }));
             setFormData(prev => ({ ...prev, shopId }));
           }
+        } else if (shopId) {
+          // For non-superadmin users, validate and set shop immediately
+          await validateAndSetShop(shopId);
+          // Set shopId in filters and formData to ensure data fetching and form submission work
+          setFilters(prev => ({ ...prev, shopId }));
+          setFormData(prev => ({ ...prev, shopId, user: id }));
         } else {
-          // For regular users, validate and set their shop
-          if (shopId) {
-            await validateAndSetShop(shopId);
-          } else {
-            setError('No shop assigned to user. Please contact administrator.');
-            return;
-          }
+          setError('No shop assigned to user. Please contact administrator.');
+          setLoading(false);
+          return;
+        }
+
+        // Trigger data fetch after shop context is set
+        if (shopId || userRole === 'superadmin') {
+          await fetchData();
         }
       } catch (err) {
         console.error('Error initializing user data:', err);
         setError('Failed to initialize user data');
+        setLoading(false);
       }
     };
 
@@ -112,8 +120,8 @@ export default function Transactions() {
     try {
       const response = await api.get(`/shops/${shopId}`);
       setCurrentShop(response.data);
-      setFormData(prev => ({ ...prev, shopId }));
       setFilters(prev => ({ ...prev, shopId }));
+      setFormData(prev => ({ ...prev, shopId }));
     } catch (err) {
       console.error('Error validating shop:', err);
       setError('Invalid shop assignment. Please contact administrator.');
@@ -135,34 +143,107 @@ export default function Transactions() {
 
   // Fetch data based on current shop context
   const fetchData = useCallback(async () => {
-    if (!filters.shopId && role !== 'superadmin') {
-      return; // Don't fetch if no shop is selected for non-superadmin
-    }
-
     setLoading(true);
     setError('');
-    
+
     try {
-      const shopParam = filters.shopId || (role === 'superadmin' ? 'all' : '');
-      
+      const shopParam = filters.shopId || (role === 'superadmin' ? 'all' : currentShop?._id || '');
+
+      // if ( role !== 'superadmin') {
+      //   setError('No shop context available for data fetching.');
+      //   setLoading(false);
+      //   return;
+      // }
+
       const [customersRes, categoriesRes] = await Promise.all([
         api.get(`/customers?shopId=${shopParam}`),
         api.get(`/categories?shopId=${shopParam}`),
       ]);
-      
+
       setCustomers(customersRes.data || []);
       setCategories(categoriesRes.data || []);
-      
+
       // Update customer search results when customers change
       setCustomerSearchResults(customersRes.data || []);
-      
     } catch (err) {
       setError('Failed to load data. Please try again later.');
       console.error('Fetch error:', err);
     } finally {
       setLoading(false);
     }
-  }, [filters.shopId, role]);
+  }, [filters.shopId, role, currentShop]);
+
+  // Fetch data when shop context changes
+  useEffect(() => {
+    if (filters.shopId || role === 'superadmin') {
+      fetchData();
+    }
+  }, [filters.shopId, role, fetchData]);
+
+  // Form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    const shopId = formData.shopId || filters.shopId;
+    if (!shopId) {
+      setError('Shop context required for transaction');
+      return;
+    }
+
+    try {
+      const form = new FormData();
+
+      // Ensure shop context is included
+      const transactionData = {
+        ...formData,
+        shopId,
+        user: userid,
+      };
+
+      Object.entries(transactionData).forEach(([key, value]) => {
+        if (value !== null && value !== '') {
+          form.append(key === 'paymentMethod' ? 'type' : key, value);
+        }
+      });
+
+      const endpoint = editingTransaction
+        ? `/transactions/${editingTransaction._id}`
+        : `/transactions`;
+      const method = editingTransaction ? api.put : api.post;
+
+      await method(endpoint, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      // Reset form
+      setFormData({
+        transactionType: '',
+        customerId: '',
+        customerName: '',
+        phone: '',
+        totalAmount: '',
+        payable: '',
+        receivable: '',
+        description: '',
+        category: '',
+        paymentMethod: '',
+        date: new Date().toISOString().split('T')[0],
+        dueDate: new Date().toISOString().split('T')[0],
+        image: null,
+        user: userid,
+        shopId,
+      });
+
+      setIsModalOpen(false);
+      setEntryMode(null);
+      setEditingTransaction(null);
+      setRefreshTrigger(prev => prev + 1);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error saving transaction.');
+      console.error('Submit error:', err);
+    }
+  };
 
   // Fetch data when shop context changes
   useEffect(() => {
@@ -289,70 +370,7 @@ export default function Transactions() {
   };
 
   // Form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    
-    const shopId = formData.shopId || filters.shopId;
-    if (!shopId) {
-      setError('Shop context required for transaction');
-      return;
-    }
-    
-    try {
-      const form = new FormData();
-      
-      // Ensure shop context is included
-      const transactionData = {
-        ...formData,
-        shopId,
-        user: userid
-      };
-      
-      Object.entries(transactionData).forEach(([key, value]) => {
-        if (value !== null && value !== '') {
-          form.append(key === 'paymentMethod' ? 'type' : key, value);
-        }
-      });
-      
-      const endpoint = editingTransaction 
-        ? `/transactions/${editingTransaction._id}` 
-        : `/transactions`;
-      const method = editingTransaction ? api.put : api.post;
-      
-      await method(endpoint, form, { 
-        headers: { 'Content-Type': 'multipart/form-data' } 
-      });
-      
-      // Reset form
-      setFormData({
-        transactionType: '',
-        customerId: '',
-        customerName: '',
-        phone: '',
-        totalAmount: '',
-        payable: '',
-        receivable: '',
-        description: '',
-        category: '',
-        paymentMethod: '',
-        date: new Date().toISOString().split('T')[0],
-        dueDate: new Date().toISOString().split('T')[0],
-        image: null,
-        user: userid,
-        shopId,
-      });
-      
-      setIsModalOpen(false);
-      setEntryMode(null);
-      setEditingTransaction(null);
-      setRefreshTrigger(prev => prev + 1);
-      
-    } catch (err) {
-      setError(err.response?.data?.message || 'Error saving transaction.');
-      console.error('Submit error:', err);
-    }
-  };
+ 
 
   // Edit transaction
   const handleEdit = (transaction) => {

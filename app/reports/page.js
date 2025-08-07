@@ -1,20 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Chart from '../../components/Chart';
 import TransactionTable from '../../components/TransactionTable';
-import { getSummaryReport } from '../../lib/api';
+import { getSummaryReport, getShops } from '../../lib/api';
 import { formatCurrency } from '../utils/helpers';
 import api from '@/lib/api';
 
 export default function Reports() {
   const [report, setReport] = useState(null);
-  const [filters, setFilters] = useState({ startDate: '', endDate: '', format: 'json', role: 'admin', category: '' });
+  const [shops, setShops] = useState([]);
+  const [filters, setFilters] = useState({
+    startDate: '',
+    endDate: '',
+    format: 'json',
+    role: localStorage.getItem('role') || '',
+    category: '',
+    shopId: localStorage.getItem('role') === 'superadmin' ? 'all' : localStorage.getItem('shopId') || '',
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
+  const [isSuperadmin, setIsSuperadmin] = useState(localStorage.getItem('role') === 'superadmin');
 
   // Edit Modal States
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -34,14 +42,31 @@ export default function Reports() {
     dueDate: '',
     isRecurring: false,
     image: null,
-    user: ''
+    user: '',
+    shopId: filters.shopId, // Include shopId in formData
   });
-  
+
   // Delete Modal States
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [transactionToDelete, setTransactionToDelete] = useState(null);
-  
+
   const today = new Date().toISOString().split('T')[0];
+
+  // Fetch shops for superadmin
+  useEffect(() => {
+    if (isSuperadmin) {
+      const fetchShops = async () => {
+        try {
+          const response = await getShops();
+          setShops([{ _id: 'all', name: 'All Shops' }, ...response.data]);
+        } catch (err) {
+          setError('Failed to fetch shops');
+          console.error('Error fetching shops:', err);
+        }
+      };
+      fetchShops();
+    }
+  }, [isSuperadmin]);
 
   const fetchReport = async () => {
     setLoading(true);
@@ -67,8 +92,6 @@ export default function Reports() {
     }
   };
 
-
-  
   const handleEdit = (transaction) => {
     setEditingTransaction(transaction);
     setFormData({
@@ -86,7 +109,8 @@ export default function Reports() {
       dueDate: transaction.dueDate ? transaction.dueDate.split('T')[0] : today,
       isRecurring: transaction.isRecurring || false,
       image: null,
-      user: transaction.user || ''
+      user: transaction.user || '',
+      shopId: transaction.shopId || filters.shopId, // Set shopId from transaction or filters
     });
     setIsEditModalOpen(true);
   };
@@ -98,8 +122,7 @@ export default function Reports() {
       await api.put(`/transactions/${editingTransaction._id}`, formData);
       setIsEditModalOpen(false);
       setEditingTransaction(null);
-      setRefreshTrigger(prev => prev + 1);
-      // Refresh the report data
+      setRefreshTrigger((prev) => prev + 1);
       fetchReport();
     } catch (err) {
       setError('Error updating transaction: ' + (err.response?.data?.message || err.message));
@@ -108,7 +131,6 @@ export default function Reports() {
       setLoading(false);
     }
   };
-  
 
   const handleDelete = (id) => {
     setTransactionToDelete(id);
@@ -121,8 +143,7 @@ export default function Reports() {
       await api.delete(`/transactions/${transactionToDelete}`);
       setIsDeleteModalOpen(false);
       setTransactionToDelete(null);
-      setRefreshTrigger(prev => prev + 1);
-      // Refresh the report data
+      setRefreshTrigger((prev) => prev + 1);
       fetchReport();
     } catch (err) {
       setError('Error deleting transaction: ' + (err.response?.data?.message || err.message));
@@ -134,10 +155,16 @@ export default function Reports() {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked : value,
     }));
+  };
+
+  const handleShopChange = (e) => {
+    const shopId = e.target.value;
+    setFilters((prev) => ({ ...prev, shopId }));
+    setFormData((prev) => ({ ...prev, shopId })); // Update shopId in formData
   };
 
   const chartData = report && {
@@ -177,7 +204,9 @@ export default function Reports() {
         transition={{ duration: 0.5 }}
         className="max-w-7xl mx-auto"
       >
-        <h1 className="text-4xl font-extrabold text-white text-center mb-8">Financial Reports (All Users)</h1>
+        <h1 className="text-4xl font-extrabold text-white text-center mb-8">
+          Financial Reports {isSuperadmin && filters.shopId === 'all' ? '(All Shops)' : `(${shops.find((shop) => shop._id === filters.shopId)?.name || 'Selected Shop'})`}
+        </h1>
 
         {error && (
           <motion.div
@@ -186,7 +215,7 @@ export default function Reports() {
             className="bg-red-900 bg-opacity-50 text-red-200 p-4 rounded-lg mb-6 text-center"
           >
             {error}
-            <button 
+            <button
               onClick={() => setError('')}
               className="ml-4 text-red-300 hover:text-red-100"
             >
@@ -202,6 +231,20 @@ export default function Reports() {
           className="flex flex-col sm:flex-row justify-between items-center mb-8 bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
         >
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            {isSuperadmin && (
+              <select
+                value={filters.shopId}
+                onChange={handleShopChange}
+                className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                aria-label="Select Shop"
+              >
+                {shops.map((shop) => (
+                  <option key={shop._id} value={shop._id}>
+                    {shop.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <input
               type="date"
               value={filters.startDate}
@@ -276,7 +319,7 @@ export default function Reports() {
                 cx="12"
                 cy="12"
                 r="10"
-                stroke="currentColor"
+                stroke='currentColor'
                 strokeWidth="4"
               ></circle>
               <path
@@ -330,212 +373,11 @@ export default function Reports() {
                   </div>
                 )}
               </motion.div>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="bg-gray-800 bg-opacity-50 backdrop-blur-lg p-6 rounded-xl shadow-lg"
-              >
-                <h3 className="text-lg font-semibold text-white mb-4">Transactions</h3>
-                <TransactionTable
-                  filters={filters}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  refresh={refreshTrigger}
-                />
-              </motion.div>
+             
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Edit Transaction Modal */}
-        <AnimatePresence>
-          {isEditModalOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-white">Edit Transaction</h2>
-                  <button
-                    onClick={() => setIsEditModalOpen(false)}
-                    className="text-gray-400 hover:text-white"
-                  >
-                    ×
-                  </button>
-                </div>
-                
-                <form onSubmit={handleSaveEdit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Transaction Type
-                      </label>
-                      <select
-                        name="transactionType"
-                        value={formData.transactionType}
-                        onChange={handleInputChange}
-                        className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        required
-                      >
-                        <option value="">Select Type</option>
-                        <option value="receivable">Credit</option>
-                        <option value="payable">Debit</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Customer Name
-                      </label>
-                      <input
-                        type="text"
-                        name="customerName"
-                        value={formData.customerName}
-                        onChange={handleInputChange}
-                        className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Total Amount
-                      </label>
-                      <input
-                        type="number"
-                        name="totalAmount"
-                        value={formData.totalAmount}
-                        onChange={handleInputChange}
-                        className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        step="0.01"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Category
-                      </label>
-                      <input
-                        type="text"
-                        name="category"
-                        value={formData.category}
-                        onChange={handleInputChange}
-                        className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Date
-                      </label>
-                      <input
-                        type="date"
-                        name="date"
-                        value={formData.date}
-                        onChange={handleInputChange}
-                        className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Due Date
-                      </label>
-                      <input
-                        type="date"
-                        name="dueDate"
-                        value={formData.dueDate}
-                        onChange={handleInputChange}
-                        className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      rows="3"
-                      className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  
-                  <div className="flex justify-end space-x-4 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditModalOpen(false)}
-                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={true}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50"
-                    >
-                      {loading ? 'Saving...' : 'Save Changes'}
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Delete Confirmation Modal */}
-        <AnimatePresence>
-          {isDeleteModalOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-gray-800 rounded-lg p-6 w-full max-w-md"
-              >
-                <h2 className="text-xl font-bold text-white mb-4">Confirm Delete</h2>
-                <p className="text-gray-300 mb-6">
-                  Are you sure you want to delete this transaction? This action cannot be undone.
-                </p>
-                
-                <div className="flex justify-end space-x-4">
-                  <button
-                    onClick={() => setIsDeleteModalOpen(false)}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDelete}
-                    disabled={loading}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
-                  >
-                    {loading ? 'Deleting...' : 'Delete'}
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );

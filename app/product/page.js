@@ -4,8 +4,11 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { Package, BarChart3, Palette, Plus, Menu, X } from 'lucide-react';
+import { Package, BarChart3, Palette, Plus, Menu, X, FileText } from 'lucide-react';
 import Link from 'next/link';
+import QuotationForm from '../../components/QuotationForm';
+import QuotationPdfPreview from '../../components/QuotationPdfPreview';
+import { useQuotation } from '../../hooks/useQuotation';
 
 export default function ManageProducts() {
   const [products, setProducts] = useState([]);
@@ -25,7 +28,6 @@ export default function ManageProducts() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
   const [totals, setTotals] = useState({
     totalCostPrice: 0,
     totalRetailPrice: 0,
@@ -34,8 +36,36 @@ export default function ManageProducts() {
   const [editingCell, setEditingCell] = useState(null);
   const [editValue, setEditValue] = useState('');
   const router = useRouter();
-  const token = localStorage.getItem('token');
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const categories = ['gallon', 'quarter', 'drums', 'liters', 'Dibbi'];
+
+  // Quotation Hook
+ const {
+    isQuotationModalOpen,
+    setIsQuotationModalOpen,
+    isPdfModalOpen,
+    setIsPdfModalOpen,
+    customers,
+    products: quotationProducts,
+    filteredProducts,
+    shops,
+    quotationForm,
+    setQuotationForm,
+    pdfUrl,
+    pdfCustomer,
+    customerSearch,
+    setCustomerSearch,
+    productSearch,
+    setProductSearch,
+    handleQuotationChange,
+    addProductRow,
+    removeProductRow,
+    calculateQuotationTotal,
+    handleSubmitQuotation,
+    handleShareWhatsApp,
+  } = useQuotation();
+
+
 
   // Fetch products and totals
   useEffect(() => {
@@ -98,6 +128,32 @@ export default function ManageProducts() {
       toast.success('Product added successfully!');
       setFormData({ name: '', costPrice: '', retailPrice: '', discountPercentage: '', category: '' });
       setIsAddModalOpen(false);
+      const fetchData = async () => {
+        setIsLoading(true);
+        try {
+          const [productsRes, totalsRes] = await Promise.all([
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
+              params: { search, page, limit },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/totals`, {
+              params: { search },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
+          setProducts(productsRes.data.products || []);
+          setTotalPages(Math.ceil(productsRes.data.total / limit));
+          setTotals({
+            totalCostPrice: totalsRes.data.totalCostPrice || 0,
+            totalRetailPrice: totalsRes.data.totalRetailPrice || 0,
+            totalSalePrice: totalsRes.data.totalSalePrice || 0,
+          });
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Failed to fetch data');
+        } finally {
+          setIsLoading(false);
+        }
+      };
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add product');
@@ -130,6 +186,32 @@ export default function ManageProducts() {
       toast.success('Product updated successfully!');
       setIsEditModalOpen(false);
       setEditProduct(null);
+      const fetchData = async () => {
+        setIsLoading(true);
+        try {
+          const [productsRes, totalsRes] = await Promise.all([
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
+              params: { search, page, limit },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/totals`, {
+              params: { search },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
+          setProducts(productsRes.data.products || []);
+          setTotalPages(Math.ceil(productsRes.data.total / limit));
+          setTotals({
+            totalCostPrice: totalsRes.data.totalCostPrice || 0,
+            totalRetailPrice: totalsRes.data.totalRetailPrice || 0,
+            totalSalePrice: totalsRes.data.totalSalePrice || 0,
+          });
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Failed to fetch data');
+        } finally {
+          setIsLoading(false);
+        }
+      };
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update product');
@@ -163,6 +245,32 @@ export default function ManageProducts() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success('Product updated successfully!');
+      const fetchData = async () => {
+        setIsLoading(true);
+        try {
+          const [productsRes, totalsRes] = await Promise.all([
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
+              params: { search, page, limit },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/totals`, {
+              params: { search },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
+          setProducts(productsRes.data.products || []);
+          setTotalPages(Math.ceil(productsRes.data.total / limit));
+          setTotals({
+            totalCostPrice: totalsRes.data.totalCostPrice || 0,
+            totalRetailPrice: totalsRes.data.totalRetailPrice || 0,
+            totalSalePrice: totalsRes.data.totalSalePrice || 0,
+          });
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Failed to fetch data');
+        } finally {
+          setIsLoading(false);
+        }
+      };
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update product');
@@ -179,6 +287,32 @@ export default function ManageProducts() {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success('Product deleted successfully!');
+      const fetchData = async () => {
+        setIsLoading(true);
+        try {
+          const [productsRes, totalsRes] = await Promise.all([
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product`, {
+              params: { search, page, limit },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL}/product/totals`, {
+              params: { search },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
+          setProducts(productsRes.data.products || []);
+          setTotalPages(Math.ceil(productsRes.data.total / limit));
+          setTotals({
+            totalCostPrice: totalsRes.data.totalCostPrice || 0,
+            totalRetailPrice: totalsRes.data.totalRetailPrice || 0,
+            totalSalePrice: totalsRes.data.totalSalePrice || 0,
+          });
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Failed to fetch data');
+        } finally {
+          setIsLoading(false);
+        }
+      };
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete product');
@@ -225,6 +359,13 @@ export default function ManageProducts() {
     { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-4 h-4" />, color: 'bg-blue-500' },
     { title: 'Manage Product', href: '/product', icon: <Plus className="w-4 h-4" />, color: 'bg-purple-500' },
     { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-4 h-4" />, color: 'bg-orange-500' },
+    {
+      title: 'Create Quotation',
+      href: '#',
+      icon: <FileText className="w-4 h-4" />,
+      color: 'bg-teal-500',
+      onClick: () => setIsQuotationModalOpen(true),
+    },
   ];
 
   return (
@@ -233,27 +374,27 @@ export default function ManageProducts() {
 
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl rounded-2xl p-6 mb-6">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-3 rounded-xl shadow-lg">
-                  <Package className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    Inventory Dashboard
-                  </h1>
-                  <p className="text-slate-600 font-medium">Manage your stock efficiently</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                aria-label="Toggle sidebar"
-              >
-                {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-3 rounded-xl shadow-lg">
+              <Package className="w-8 h-8 text-white" />
             </div>
-          </header>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                Inventory Dashboard
+              </h1>
+              <p className="text-slate-600 font-medium">Manage your stock efficiently</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            aria-label="Toggle sidebar"
+          >
+            {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+      </header>
 
       {/* Sidebar (Quick Actions) */}
       {isSidebarOpen && (
@@ -263,27 +404,77 @@ export default function ManageProducts() {
             Quick Actions
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
-              <Link
-                key={index}
-                href={action.href}
-                className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
-              >
-                <div className={`${action.color} p-6 text-white`}>
-                  <div className="flex items-center justify-between mb-3">
-                    {action.icon}
-                    <div className="opacity-20 text-2xl">→</div>
+            {quickActions.map((action, index) =>
+              action.onClick ? (
+                <button
+                  key={index}
+                  onClick={action.onClick}
+                  className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 text-left"
+                >
+                  <div className={`${action.color} p-6 text-white`}>
+                    <div className="flex items-center justify-between mb-3">
+                      {action.icon}
+                      <div className="opacity-20 text-2xl">→</div>
+                    </div>
+                    <h3 className="font-bold text-lg mb-1">{action.title}</h3>
+                    <p className="text-sm opacity-90">{action.description}</p>
                   </div>
-                  <h3 className="font-bold text-lg mb-1">{action.title}</h3>
-                  <p className="text-sm opacity-90">{action.description}</p>
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </Link>
-            ))}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </button>
+              ) : (
+                <Link
+                  key={index}
+                  href={action.href}
+                  className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                >
+                  <div className={`${action.color} p-6 text-white`}>
+                    <div className="flex items-center justify-between mb-3">
+                      {action.icon}
+                      <div className="opacity-20 text-2xl">→</div>
+                    </div>
+                    <h3 className="font-bold text-lg mb-1">{action.title}</h3>
+                    <p className="text-sm opacity-90">{action.description}</p>
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </Link>
+              )
+            )}
           </div>
         </div>
       )}
- 
+
+      {/* Quotation Form Modal */}
+   <QuotationForm
+        isOpen={isQuotationModalOpen}
+        onClose={() => setIsQuotationModalOpen(false)}
+        customers={customers}
+        products={quotationProducts}
+        filteredProducts={filteredProducts}
+        shops={shops}
+        quotationForm={quotationForm}
+        setQuotationForm={setQuotationForm}
+        handleQuotationChange={handleQuotationChange}
+        addProductRow={addProductRow}
+        removeProductRow={removeProductRow}
+        calculateQuotationTotal={calculateQuotationTotal}
+        handleSubmitQuotation={handleSubmitQuotation}
+        customerSearch={customerSearch}
+        setCustomerSearch={setCustomerSearch}
+        productSearch={productSearch}
+        setProductSearch={setProductSearch}
+      />
+
+      {/* PDF Preview Modal */}
+      <QuotationPdfPreview
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
+        pdfUrl={pdfUrl}
+        pdfCustomer={pdfCustomer}
+        calculateQuotationTotal={calculateQuotationTotal}
+        handleShareWhatsApp={handleShareWhatsApp}
+        products={quotationProducts}
+        quotationForm={quotationForm}
+      />
 
       {/* Main Content */}
       <main className="mt-6 px-4">
@@ -330,14 +521,16 @@ export default function ManageProducts() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-indigo-50">
                 <tr>
-                  {['S.No', 'Name', 'Cost Price', 'Retail Price', 'Discount', 'Sale Price', 'Category', 'Actions'].map((header) => (
-                    <th
-                      key={header}
-                      className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wide"
-                    >
-                      {header}
-                    </th>
-                  ))}
+                  {['S.No', 'Name', 'Cost Price', 'Retail Price', 'Discount', 'Sale Price', 'Category', 'Actions'].map(
+                    (header) => (
+                      <th
+                        key={header}
+                        className="px-4 py-3 text-left text-xs font-semibold text-indigo-700 uppercase tracking-wide"
+                      >
+                        {header}
+                      </th>
+                    )
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -395,7 +588,9 @@ export default function ManageProducts() {
                       </td>
                       <td
                         className="px-4 py-3 text-sm text-gray-700 cursor-pointer hover:bg-gray-100 rounded"
-                        onDoubleClick={() => startEditing(product._id, 'discountPercentage', product.discountPercentage)}
+                        onDoubleClick={() =>
+                          startEditing(product._id, 'discountPercentage', product.discountPercentage)
+                        }
                       >
                         {editingCell?.productId === product._id && editingCell?.field === 'discountPercentage' ? (
                           <input
@@ -442,8 +637,18 @@ export default function ManageProducts() {
                   <tr>
                     <td colSpan="8" className="px-4 py-6 text-center text-gray-500 text-sm">
                       <div className="flex flex-col items-center">
-                        <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                        <svg
+                          className="w-12 h-12 text-gray-400 mb-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                          />
                         </svg>
                         No products found
                       </div>
@@ -515,7 +720,9 @@ export default function ManageProducts() {
                       </p>
                       <p
                         className="cursor-pointer hover:bg-gray-100 p-1 rounded"
-                        onDoubleClick={() => startEditing(product._id, 'discountPercentage', product.discountPercentage)}
+                        onDoubleClick={() =>
+                          startEditing(product._id, 'discountPercentage', product.discountPercentage)
+                        }
                       >
                         <span className="font-medium">Discount:</span>{' '}
                         {editingCell?.productId === product._id && editingCell?.field === 'discountPercentage' ? (
@@ -568,8 +775,18 @@ export default function ManageProducts() {
             ) : (
               <div className="p-4 text-center text-gray-500 text-sm">
                 <div className="flex flex-col items-center">
-                  <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  <svg
+                    className="w-12 h-12 text-gray-400 mb-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    />
                   </svg>
                   No products found
                 </div>
@@ -676,7 +893,7 @@ export default function ManageProducts() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700">Retail Price (PKR)</label>
+                <label className="blockσσσ text-xs font-medium text-gray-700">Retail Price (PKR)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -839,6 +1056,7 @@ export default function ManageProducts() {
           </div>
         </div>
       )}
+
       <style jsx global>{`
         @keyframes slideIn {
           from {

@@ -21,29 +21,35 @@ export default function SummaryDashboard({ filters, refresh }) {
   const [error, setError] = useState('');
 
   // Fetch dashboard data
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await api.get(
-          `/dashboard/summary`
-        );
-        setDashboardData({
-          totalPayables: response.data.totalPayables || 0,
-          totalReceivables: response.data.totalReceivables || 0,
-          balance: response.data.balance || 0,
-          alerts: response.data.alerts || [],
-        });
-      } catch (err) {
-        setError('Failed to load dashboard data. Please try again.');
-        console.error('Fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboardData();
-  }, [filters, refresh]);
+ useEffect(() => {
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await api.get('/dashboard/summary', {
+        params: filters, // ✅ filters is passed as query params
+      });
+
+      const data = response.data;
+
+      setDashboardData({
+        totalPayables: data.totalPayables || 0,
+        totalReceivables: data.totalReceivables || 0,
+        balance: data.balance || 0,
+        alerts: data.alerts || [],
+      });
+
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError('Failed to load dashboard data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchDashboardData();
+}, [filters, refresh]);
 
   return (
     <motion.div

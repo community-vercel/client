@@ -406,9 +406,12 @@ const fetchDailyReport = async (date) => {
       Object.entries(formData).forEach(([key, value]) => {
         if (value !== null && value !== '') form.append(key === 'paymentMethod' ? 'type' : key, value);
       });
-      const endpoint = editingTransaction ? `/transactions/${editingTransaction._id}` : '/transactions';
-      const method = editingTransaction ? api.updateTransaction : api.createTransaction;
-      await method(endpoint, form);
+
+      const endpoint = editingTransaction ? `transactions/${editingTransaction._id}` : `transactions`;
+      const method = editingTransaction ? api.put : api.post;
+
+      await method(endpoint, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+
       setFormData({
         transactionType: '',
         customerId: '',

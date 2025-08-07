@@ -166,7 +166,7 @@ export default function UserManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-22 px-4 sm:px-4 md:px-6 lg:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 px-4  py-22">
       <div className="w-full max-w-7xl mx-auto overflow-x-hidden sm:p-4 md:p-6 lg:p-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}

@@ -1,4 +1,3 @@
-// Fixed Customer Frontend Component
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -10,7 +9,7 @@ import { formatCurrency } from '../utils/helpers';
 import TransactionModal from '../../components/TransactionModal';
 import Chart from '../../components/Chart';
 
-// Animation variants
+// Animation variants (unchanged)
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
@@ -34,107 +33,133 @@ const REPORT_FORMATS = [
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
-  const [formData, setFormData] = useState({ name: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', address: '', shopId: '' });
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [shops, setShops] = useState([]);
+  const [selectedShop, setSelectedShop] = useState('all'); // For superadmin shop filtering
   const [reportFormat, setReportFormat] = useState('pdf');
   const [selectedCustomers, setSelectedCustomers] = useState(new Set());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [userId, setUserId] = useState(null);
-  const [shopId, setShopId] = useState(null); // ADDED: Track shopId
-  const [role, setRole] = useState(null); // ADDED: Track user role
+  const [shopId, setShopId] = useState(null);
+  const [role, setRole] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [customerSummaries, setCustomerSummaries] = useState({});
   const [expandedCustomer, setExpandedCustomer] = useState(null);
 
-  // FIXED: Initialize user data from localStorage
+  // Initialize user data from localStorage
   useEffect(() => {
     const id = localStorage.getItem('userid');
     const userShopId = localStorage.getItem('shopId');
     const userRole = localStorage.getItem('role');
-    
-    console.log('User data from localStorage:', { id, userShopId, userRole }); // Debug log
-    
+
+    console.log('User data from localStorage:', { id, userShopId, userRole });
+
     if (id) setUserId(id);
     if (userShopId) setShopId(userShopId);
     if (userRole) setRole(userRole);
   }, []);
 
-  // FIXED: Fetch customers with proper shopId parameter
+  // Fetch shops for superadmin
+  useEffect(() => {
+    if (role === 'superadmin') {
+      const fetchShops = async () => {
+        try {
+          const { data } = await api.get('/shops');
+          console.log('Fetched shops:', data);
+          setShops([{ _id: 'all', name: 'All Shops' }, ...data]);
+        } catch (err) {
+          console.error('Error fetching shops:', err);
+          setError('Failed to load shops.');
+        }
+      };
+      fetchShops();
+    }
+  }, [role]);
+
+  // Fetch customers with shopId filter
   const fetchCustomers = useCallback(
     async (searchQuery) => {
       if (!shopId && role !== 'superadmin') {
-        console.log('No shopId available, skipping fetch'); // Debug log
+        console.log('No shopId available, skipping fetch');
         setLoading(false);
         return;
       }
-      
+
       setLoading(true);
       setError('');
-      
+
       try {
-        // FIXED: Include shopId in the request for proper filtering
         const queryParams = new URLSearchParams();
         if (searchQuery) queryParams.append('search', searchQuery);
-        if (shopId) queryParams.append('shopId', shopId);
-        
+        if (role === 'superadmin' && selectedShop !== 'all') {
+          queryParams.append('shopId', selectedShop);
+        } else if (role !== 'superadmin' && shopId) {
+          queryParams.append('shopId', shopId);
+        } else if (role === 'superadmin' && selectedShop === 'all') {
+          queryParams.append('shopId', 'all');
+        }
+
         const url = `/customers${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-        console.log('Fetching customers from:', url); // Debug log
-        
+        console.log('Fetching customers from:', url);
         const { data } = await api.get(url);
-        console.log('Received customers:', data); // Debug log
+        console.log('Received customers:', data);
         setCustomers(data);
       } catch (err) {
-        console.error('Error fetching customers:', err); // Debug log
+        console.error('Error fetching customers:', err);
         setError(err.response?.data?.message || 'Failed to load customers.');
       } finally {
         setLoading(false);
       }
     },
-    [shopId, role]
+    [shopId, role, selectedShop]
   );
 
   const debouncedFetchCustomers = useCallback(debounce(fetchCustomers, 300), [fetchCustomers]);
 
-  // FIXED: Only fetch when we have required data
   useEffect(() => {
     if (shopId || role === 'superadmin') {
       debouncedFetchCustomers(search);
     }
     return () => debouncedFetchCustomers.cancel();
-  }, [search, refreshTrigger, shopId, role, debouncedFetchCustomers]);
+  }, [search, refreshTrigger, shopId, role, selectedShop, debouncedFetchCustomers]);
 
-  // FIXED: Include shopId in customer creation
+  // Handle customer creation
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
+
     if (!shopId && role !== 'superadmin') {
       setError('Shop ID is required to create customers.');
       return;
     }
-    
+
+    if (role === 'superadmin' && !formData.shopId) {
+      setError('Please select a shop to add the customer.');
+      return;
+    }
+
     try {
-      const customerData = { 
-        ...formData, 
+      const customerData = {
+        ...formData,
         user: userId,
-        shopId: shopId // FIXED: Include shopId
+        shopId: role === 'superadmin' ? formData.shopId : shopId,
       };
-      
-      console.log('Creating customer with data:', customerData); // Debug log
-      
+
+      console.log('Creating customer with data:', customerData);
       await api.post('/customers', customerData);
-      setFormData({ name: '', phone: '', address: '' });
+      setFormData({ name: '', phone: '', address: '', shopId: '' });
       setRefreshTrigger((prev) => prev + 1);
     } catch (err) {
-      console.error('Error creating customer:', err); // Debug log
+      console.error('Error creating customer:', err);
       setError(err.response?.data?.message || 'Failed to add customer.');
     }
   };
 
-  // Handle customer deletion
+  // Handle customer deletion (unchanged)
   const handleDeleteCustomer = async (customerId) => {
     if (!confirm('Are you sure you want to delete this customer?')) return;
     try {
@@ -157,7 +182,7 @@ export default function Customers() {
     }
   };
 
-  // Handle bulk deletion
+  // Handle bulk deletion (unchanged)
   const handleBulkDelete = async () => {
     if (!confirm(`Are you sure you want to delete ${selectedCustomers.size} customer(s)?`)) return;
     try {
@@ -179,7 +204,7 @@ export default function Customers() {
     }
   };
 
-  // Handle report generation
+  // Handle report generation (unchanged)
   const handleGenerateReport = async (customerId) => {
     setError('');
     try {
@@ -198,7 +223,7 @@ export default function Customers() {
     }
   };
 
-  // Handle transaction submission
+  // Handle transaction submission (unchanged)
   const handleTransactionSubmit = async (form) => {
     try {
       await api.post('/transactions', form, {
@@ -216,7 +241,7 @@ export default function Customers() {
     }
   };
 
-  // Toggle customer selection
+  // Toggle customer selection (unchanged)
   const toggleCustomerSelection = (customerId) => {
     setSelectedCustomers((prev) => {
       const updated = new Set(prev);
@@ -233,13 +258,13 @@ export default function Customers() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Open transaction modal
+  // Open transaction modal (unchanged)
   const openTransactionModal = (customer) => {
     setSelectedCustomer({ customerId: customer._id, customerName: customer.name });
     setIsModalOpen(true);
   };
 
-  // Chart options for category summary
+  // Chart options (unchanged)
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -256,7 +281,7 @@ export default function Customers() {
     },
   };
 
-  // ADDED: Show loading/error states for missing shopId
+  // Show loading/error for missing shopId
   if (!shopId && role !== 'superadmin' && !loading) {
     return (
       <section className="bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-10 px-4 sm:px-6 lg:px-8">
@@ -275,7 +300,7 @@ export default function Customers() {
   }
 
   return (
-    <section className="bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-10 px-4 sm:px-6 lg:px-8">
+    <section className="bg-gradient-to-br from-gray-900 via-indigo-950 to-purple-950 py-10 px-4 sm:px-6 lg:px-8 py-22">
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -290,7 +315,6 @@ export default function Customers() {
           <p className="mt-2 text-base md:text-lg text-gray-300">
             Efficiently manage your customer relationships and financials.
           </p>
-          {/* ADDED: Debug info (remove in production) */}
           {process.env.NODE_ENV === 'development' && (
             <div className="mt-2 text-sm text-gray-400">
               Shop ID: {shopId || 'Not set'} | Role: {role || 'Not set'} | User ID: {userId || 'Not set'}
@@ -313,6 +337,25 @@ export default function Customers() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Shop Selection for Superadmin */}
+        {role === 'superadmin' && (
+          <motion.div variants={containerVariants} className="bg-gray-800 bg-opacity-60 backdrop-blur-lg p-6 rounded-xl shadow-xl">
+            <h2 className="text-xl font-semibold text-white mb-4">Select Shop</h2>
+            <select
+              value={selectedShop}
+              onChange={(e) => setSelectedShop(e.target.value)}
+              className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+              aria-label="Select Shop"
+            >
+              {shops.map((shop) => (
+                <option key={shop._id} value={shop._id}>
+                  {shop.name}
+                </option>
+              ))}
+            </select>
+          </motion.div>
+        )}
 
         {/* Customer Summary */}
         {!loading && (
@@ -341,6 +384,25 @@ export default function Customers() {
           >
             <h2 className="text-xl font-semibold text-white mb-4">Add New Customer</h2>
             <div className="grid grid-cols-1 gap-4">
+              {role === 'superadmin' && (
+                <select
+                  name="shopId"
+                  value={formData.shopId}
+                  onChange={handleInputChange}
+                  className="p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
+                  required
+                  aria-label="Select Shop for Customer"
+                >
+                  <option value="" disabled>
+                    Select a Shop
+                  </option>
+                  {shops.filter((shop) => shop._id !== 'all').map((shop) => (
+                    <option key={shop._id} value={shop._id}>
+                      {shop.name}
+                    </option>
+                  ))}
+                </select>
+              )}
               <input
                 type="text"
                 name="name"
@@ -500,6 +562,11 @@ export default function Customers() {
                               {formatCurrency((customer.balance || 0).toFixed(2))}
                             </span>
                           </p>
+                          {role === 'superadmin' && (
+                            <p className="text-gray-300 text-sm">
+                              Shop: {shops.find((shop) => shop._id === customer.shopId)?.name || 'Unknown'}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">

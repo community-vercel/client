@@ -285,7 +285,7 @@ export default function AddTransaction() {
       } else {
         // Redirect back to transactions page
         setTimeout(() => {
-          router.push('/dashboard/transactions');
+          router.push('/dashboard/payments');
         }, 1500);
       }
     } catch (err) {

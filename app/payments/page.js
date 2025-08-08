@@ -10,6 +10,7 @@ import api from '../../lib/api';
 import { formatCurrency, downloadCSV } from '../utils/helpers';
 import Fuse from 'fuse.js';
 import ReactDOM from 'react-dom';
+import Link from 'next/link';
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -688,15 +689,14 @@ export default function Transactions() {
           </div>
           
           {/* Action Buttons */}
-          <div className="flex gap-4">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              disabled={!filters.shopId && role !== 'superadmin'}
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+           <div className="flex gap-4">
+            <Link
+              href="/payments/add-transaction"
+              className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-3 rounded-lg font-semibold hover:from-indigo-600 hover:to-purple-600 transition"
               aria-label="Add Transaction"
             >
               Add Transaction
-            </button>
+            </Link>
             <button
               onClick={handleExport}
               disabled={loading}

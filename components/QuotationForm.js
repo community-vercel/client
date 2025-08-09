@@ -304,7 +304,7 @@ const QuotationForm = ({
                   Generating your quotation...
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  This may take a few seconds. Please don't close this window.
+                  This may take a few seconds. Please dont close this window.
                 </p>
               </div>
             </div>

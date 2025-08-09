@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -19,7 +19,6 @@ export default function AddTransaction() {
   const [customers, setCustomers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [shops, setShops] = useState([]);
-  const [currentShop, setCurrentShop] = useState(null);
   const [userid, setUserid] = useState(null);
   
   const [formData, setFormData] = useState({
@@ -34,18 +33,43 @@ export default function AddTransaction() {
     category: '',
     paymentMethod: '',
     date: new Date().toISOString().split('T')[0],
-    dueDate: new Date().toISOString().split('T')[0],
     image: null,
     user: null,
     shopId: null,
   });
   
-  const [entryMode, setEntryMode] = useState(null);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [saveAndAddAnother, setSaveAndAddAnother] = useState(false);
   const inputRef = useRef(null);
+
+  // Memoized form validation
+  const isFormValid = useMemo(() => {
+    const requiredFields = [
+      'customerName',
+      'transactionType',
+      'totalAmount',
+      'paymentMethod',
+      'date'
+    ];
+
+    // For superadmin, shopId is also required
+    if (role === 'superadmin') {
+      requiredFields.push('shopId');
+    }
+
+    // Check if amount field is filled based on transaction type
+    const amountField = formData.transactionType === 'payable' ? 'payable' : 'receivable';
+    if (formData.transactionType) {
+      requiredFields.push(amountField);
+    }
+
+    return requiredFields.every(field => {
+      const value = formData[field];
+      return value !== null && value !== undefined && value.toString().trim() !== '';
+    });
+  }, [formData, role]);
 
   // Initialize user data and shop context
   useEffect(() => {
@@ -77,11 +101,9 @@ export default function AddTransaction() {
           const response = await api.get('/shops');
           setShops(response.data || []);
         } else if (storedShopId) {
-          // For non-superadmin users, set the shop context immediately
           setFormData(prev => ({ ...prev, shopId: storedShopId }));
         }
 
-        // Fetch data based on user role and shop context
         const shopParam = userRole === 'superadmin' && formData.shopId 
           ? formData.shopId 
           : storedShopId;
@@ -136,36 +158,23 @@ export default function AddTransaction() {
     }
   };
 
-  // Transaction type selection
-  const handleTransactionTypeSelect = (type) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      transactionType: type, 
-      payable: '', 
-      receivable: '',
-    }));
-  };
-
-  // Entry mode selection
-  const handleEntryModeSelect = (mode) => {
-    setEntryMode(mode);
-  };
-
   // Customer search in form - only searches current shop's customers
-  const fuse = new Fuse(customers, { keys: ['name'], threshold: 0.3, includeScore: true });
+  const fuse = useMemo(() => new Fuse(customers, { 
+    keys: ['name'], 
+    threshold: 0.3, 
+    includeScore: true 
+  }), [customers]);
 
   const handleInputChange = (e) => {
     const value = e.target.value;
     setFormData(prev => ({ ...prev, customerName: value }));
     
-    // Check if customer exists in current shop's customer list only
     const customerExists = customers.some(c => 
       c.name.toLowerCase() === value.toLowerCase()
     );
     setShowCustomerForm(!customerExists && value.trim() !== '');
     
     if (value.trim()) {
-      // Search only in current shop's customers
       const results = fuse.search(value).map(result => result.item);
       setSearchResults(results);
       setIsDropdownOpen(results.length > 0);
@@ -176,7 +185,6 @@ export default function AddTransaction() {
   };
 
   const handleSelectCustomer = (customer) => {
-    console.log('Selecting customer:', customer);
     setFormData(prev => ({ 
       ...prev, 
       customerId: customer._id, 
@@ -185,9 +193,6 @@ export default function AddTransaction() {
     setShowCustomerForm(false);
     setIsDropdownOpen(false);
     setSearchResults([]);
-    
-    // Stop event propagation to prevent any parent handlers
-    event.stopPropagation();
   };
 
   // Add new customer - only to current shop
@@ -202,7 +207,7 @@ export default function AddTransaction() {
       const { data } = await api.post('/customers', {
         name: formData.customerName,
         phone: formData.phone,
-        shopId: shopIdToUse, // Add customer to current shop only
+        shopId: shopIdToUse,
       });
       
       setFormData(prev => ({ 
@@ -210,7 +215,6 @@ export default function AddTransaction() {
         customerId: data._id, 
         customerName: data.name 
       }));
-      // Add new customer to current shop's customer list
       setCustomers(prev => [...prev, data]);
       setShowCustomerForm(false);
       toast.success('Customer added successfully!');
@@ -223,6 +227,8 @@ export default function AddTransaction() {
   // Form submission
   const handleSubmit = async (e, addAnother = false) => {
     e.preventDefault();
+    if (!isFormValid) return;
+    
     setError('');
     setSaveAndAddAnother(addAnother);
 
@@ -235,7 +241,6 @@ export default function AddTransaction() {
     try {
       const form = new FormData();
 
-      // Ensure shop context is included
       const transactionData = {
         ...formData,
         shopId: shopIdToUse,
@@ -255,7 +260,6 @@ export default function AddTransaction() {
       toast.success('Transaction added successfully!');
       
       if (addAnother) {
-        // Reset form but keep shop context and current customer
         const currentCustomer = {
           customerId: formData.customerId,
           customerName: formData.customerName
@@ -263,8 +267,8 @@ export default function AddTransaction() {
         
         setFormData({
           transactionType: '',
-          customerId: currentCustomer.customerId,
-          customerName: currentCustomer.customerName,
+          customerId:'',
+          customerName:'',
           phone: '',
           totalAmount: '',
           payable: '',
@@ -273,19 +277,16 @@ export default function AddTransaction() {
           category: '',
           paymentMethod: '',
           date: new Date().toISOString().split('T')[0],
-          dueDate: new Date().toISOString().split('T')[0],
           image: null,
           user: userid,
           shopId: shopIdToUse,
         });
-        setEntryMode(null);
         setShowCustomerForm(false);
         setIsDropdownOpen(false);
         setSearchResults([]);
       } else {
-        // Redirect back to transactions page
         setTimeout(() => {
-          router.push('/dashboard/payments');
+          router.push('/payments');
         }, 1500);
       }
     } catch (err) {
@@ -296,11 +297,10 @@ export default function AddTransaction() {
     }
   };
 
-  // Click outside handler - Fixed to properly handle dropdown closing
+  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (inputRef.current && !inputRef.current.contains(event.target)) {
-        // Only close if not clicking on a dropdown item
         const isDropdownClick = event.target.closest('.customer-dropdown-item');
         if (!isDropdownClick) {
           setIsDropdownOpen(false);
@@ -319,6 +319,8 @@ export default function AddTransaction() {
     }
   }, [formData.shopId, role, fetchShopSpecificData]);
 
+
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 font-sans py-20">
       <ToastContainer theme="colored" position="top-right" />
@@ -339,316 +341,298 @@ export default function AddTransaction() {
             </div>
           ) : (
             <>
-              {/* Shop Selection for Superadmin */}
-              {role === 'superadmin' && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Select Shop</label>
-                  <select
-                    value={formData.shopId || ''}
-                    onChange={(e) => handleShopChange(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                    required
-                  >
-                    <option value="">Select Shop</option>
-                    {shops.map((shop) => (
-                      <option key={shop._id} value={shop._id}>
-                        {shop.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Show form only if shop is selected or user is not superadmin */}
-              {((role === 'superadmin' && formData.shopId) || role !== 'superadmin') && (
-                <>
-                  {!formData.transactionType ? (
-                    /* Transaction Type Selection */
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-800">Select Transaction Type</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <button
-                          onClick={() => handleTransactionTypeSelect('payable')}
-                          className="bg-red-500 text-white p-4 rounded-lg hover:bg-red-600 transition transform hover:scale-105 flex items-center justify-center gap-3"
-                        >
-                          Payable (You Owe Money)
-                        </button>
-                        <button
-                          onClick={() => handleTransactionTypeSelect('receivable')}
-                          className="bg-green-500 text-white p-4 rounded-lg hover:bg-green-600 transition transform hover:scale-105 flex items-center justify-center gap-3"
-                        >
-                          Receivable (Money Owed to You)
-                        </button>
-                      </div>
-                    </div>
-                  ) : !entryMode ? (
-                    /* Entry Mode Selection */
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-gray-800">Select Entry Mode</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <button
-                          onClick={() => handleEntryModeSelect('upload')}
-                          className="bg-blue-500 text-white p-4 rounded-lg hover:bg-blue-600 transition transform hover:scale-105 flex items-center justify-center gap-3"
-                        >
-                          Upload Receipt Image
-                        </button>
-                        <button
-                          onClick={() => handleEntryModeSelect('manual')}
-                          className="bg-indigo-500 text-white p-4 rounded-lg hover:bg-indigo-600 transition transform hover:scale-105 flex items-center justify-center gap-3"
-                        >
-                          Manual Entry
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => setFormData(prev => ({ ...prev, transactionType: '' }))}
-                        className="text-gray-500 hover:text-gray-700 transition-colors"
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* First Row - Shop (for superadmin), Customer, Transaction Type */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {role === 'superadmin' ? (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">Shop *</label>
+                      <select
+                        value={formData.shopId || ''}
+                        onChange={(e) => handleShopChange(e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        required
                       >
-                        ← Back to Transaction Type
-                      </button>
+                        <option value="">Select Shop</option>
+                        {shops.map((shop) => (
+                          <option key={shop._id} value={shop._id}>
+                            {shop.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   ) : (
-                    /* Transaction Form */
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-semibold text-gray-800">Transaction Details</h3>
-                        <button
-                          type="button"
-                          onClick={() => setEntryMode(null)}
-                          className="text-gray-500 hover:text-gray-700 transition-colors"
-                        >
-                          ← Back to Entry Mode
-                        </button>
-                      </div>
-
-                      {/* Image Upload */}
-                      {entryMode === 'upload' && (
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">Upload Receipt</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.files[0] }))}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                          />
-                        </div>
-                      )}
-
-                      {/* Customer Selection - Shows only current shop's customers */}
-                      <div className="space-y-2 relative">
-                        <label className="block text-sm font-medium text-gray-700">Customer</label>
-                        <input
-                          type="text"
-                          placeholder="Search or add customer"
-                          value={formData.customerName}
-                          onChange={handleInputChange}
-                          onFocus={() => {
-                            if (formData.customerName.trim()) {
-                              const results = fuse.search(formData.customerName).map(result => result.item);
-                              setSearchResults(results);
-                              setIsDropdownOpen(results.length > 0);
-                            }
-                          }}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                          required
-                          ref={inputRef}
-                        />
-                        
-                        {/* Customer Suggestions Dropdown - Only current shop's customers */}
-                        {isDropdownOpen && searchResults.length > 0 && (
-                          <div className="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
-                            {searchResults.map((customer) => (
-                              <div
-                                key={customer._id}
-                                onClick={() => handleSelectCustomer(customer)}
-                                className="customer-dropdown-item px-4 py-3 text-gray-800 hover:bg-blue-50 cursor-pointer transition-colors duration-200 border-b border-gray-100 last:border-b-0"
-                              >
-                                <div className="font-medium">{customer.name}</div>
-                                {customer.phone && (
-                                  <div className="text-sm text-gray-500">{customer.phone}</div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* New Customer Form */}
-                      {showCustomerForm && (
-                        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-4">
-                          <h4 className="text-lg font-semibold text-blue-800">Add New Customer</h4>
-                          
-                          <div className="space-y-2">
-                            <label className="block text-sm font-medium text-blue-700">Phone (optional)</label>
-                            <input
-                              type="tel"
-                              placeholder="Enter phone number"
-                              value={formData.phone}
-                              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                            />
-                          </div>
-                          
-                          <button
-                            type="button"
-                            onClick={handleAddCustomer}
-                            className="w-full py-3 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium"
-                          >
-                            Add Customer
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Amount Fields */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">Total Amount</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={formData.totalAmount}
-                            onChange={(e) => {
-                              const totalAmount = e.target.value;
-                              setFormData(prev => ({
-                                ...prev,
-                                totalAmount,
-                                [prev.transactionType === 'payable' ? 'payable' : 'receivable']: totalAmount,
-                              }));
-                            }}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                            required
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">
-                            {formData.transactionType === 'payable' ? 'Amount Payable' : 'Amount Receivable'}
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={formData.transactionType === 'payable' ? formData.payable : formData.receivable}
-                            onChange={(e) =>
-                              setFormData(prev => ({
-                                ...prev,
-                                [prev.transactionType === 'payable' ? 'payable' : 'receivable']: e.target.value,
-                              }))
-                            }
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      {/* Description */}
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
-                        <textarea
-                          placeholder="Enter transaction description..."
-                          value={formData.description}
-                          onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
-                          rows={3}
-                        />
-                      </div>
-
-                      {/* Category and Payment Method */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">Category</label>
-                          <select
-                            value={formData.category}
-                            onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                          >
-                            <option value="">Select Category</option>
-                            {categories.map((cat, index) => (
-                              <option key={cat._id || index} value={cat.name}>
-                                {cat.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">Payment Method</label>
-                          <select
-                            value={formData.paymentMethod}
-                            onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                            required
-                          >
-                            <option value="">Select Payment Method</option>
-                            {PAYMENT_METHODS.map((method) => (
-                              <option key={method} value={method}>
-                                {method}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Dates */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">Transaction Date</label>
-                          <input
-                            type="date"
-                            value={formData.date}
-                            onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                            max={new Date().toISOString().split('T')[0]}
-                            required
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-700">Due Date (optional)</label>
-                          <input
-                            type="date"
-                            value={formData.dueDate}
-                            onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Submit Buttons */}
-                      <div className="flex gap-4 pt-6">
-                        <button
-                          type="submit"
-                          onClick={(e) => handleSubmit(e, false)}
-                          className="flex-1 bg-blue-500 text-white p-4 rounded-lg font-semibold hover:bg-blue-600 transition"
-                        >
-                          Save Transaction
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={(e) => handleSubmit(e, true)}
-                          className="flex-1 bg-green-500 text-white p-4 rounded-lg font-semibold hover:bg-green-600 transition"
-                        >
-                          Save & Add Another
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => router.back()}
-                          className="px-6 py-4 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">Upload Receipt (optional)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.files[0] }))}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      />
+                    </div>
                   )}
-                </>
+
+                  {/* Customer Selection */}
+                  <div className="space-y-2 relative">
+                    <label className="block text-sm font-medium text-gray-700">Customer *</label>
+                    <input
+                      type="text"
+                      placeholder="Search or add customer"
+                      value={formData.customerName}
+                      onChange={handleInputChange}
+                      onFocus={() => {
+                        if (formData.customerName.trim()) {
+                          const results = fuse.search(formData.customerName).map(result => result.item);
+                          setSearchResults(results);
+                          setIsDropdownOpen(results.length > 0);
+                        }
+                      }}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      required
+                      ref={inputRef}
+                      disabled={role === 'superadmin' && !formData.shopId}
+                    />
+                    
+                    {/* Customer Suggestions Dropdown */}
+                    {isDropdownOpen && searchResults.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
+                        {searchResults.map((customer) => (
+                          <div
+                            key={customer._id}
+                            onClick={() => handleSelectCustomer(customer)}
+                            className="customer-dropdown-item px-4 py-3 text-gray-800 hover:bg-blue-50 cursor-pointer transition-colors duration-200 border-b border-gray-100 last:border-b-0"
+                          >
+                            <div className="font-medium">{customer.name}</div>
+                            {customer.phone && (
+                              <div className="text-sm text-gray-500">{customer.phone}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Transaction Type */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Transaction Type *</label>
+                    <select
+                      value={formData.transactionType}
+                      onChange={(e) => setFormData(prev => ({ 
+                        ...prev, 
+                        transactionType: e.target.value,
+                        payable: '',
+                        receivable: ''
+                      }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      required
+                      disabled={role === 'superadmin' && !formData.shopId}
+                    >
+                      <option value="">Select Transaction Type</option>
+                      <option value="payable">Payable (You Owe Money)</option>
+                      <option value="receivable">Receivable (Money Owed to You)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* New Customer Form */}
+                {showCustomerForm && (
+                  <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-4">
+                    <h4 className="text-lg font-semibold text-blue-800">Add New Customer</h4>
+                    
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-blue-700">Phone (optional)</label>
+                      <input
+                        type="tel"
+                        placeholder="Enter phone number"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      />
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={handleAddCustomer}
+                      className="w-full py-3 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium"
+                    >
+                      Add Customer
+                    </button>
+                  </div>
+                )}
+
+                {/* Second Row - Total Amount, Amount Type, Payment Method */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Total Amount *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.totalAmount}
+                      onChange={(e) => {
+                        const totalAmount = e.target.value;
+                        setFormData(prev => ({
+                          ...prev,
+                          totalAmount,
+                          [prev.transactionType === 'payable' ? 'payable' : 'receivable']: totalAmount,
+                        }));
+                      }}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      required
+                      disabled={role === 'superadmin' && !formData.shopId}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                      {formData.transactionType === 'payable' ? 'Amount Payable *' : formData.transactionType === 'receivable' ? 'Amount Receivable *' : 'Amount *'}
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.transactionType === 'payable' ? formData.payable : formData.receivable}
+                      onChange={(e) =>
+                        setFormData(prev => ({
+                          ...prev,
+                          [prev.transactionType === 'payable' ? 'payable' : 'receivable']: e.target.value,
+                        }))
+                      }
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      required
+                      disabled={!formData.transactionType || (role === 'superadmin' && !formData.shopId)}
+                    />
+                  </div>
+
+                  {/* Payment Method */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Payment Method *</label>
+                    <select
+                      value={formData.paymentMethod}
+                      onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      required
+                      disabled={role === 'superadmin' && !formData.shopId}
+                    >
+                      <option value="">Select Payment Method</option>
+                      {PAYMENT_METHODS.map((method) => (
+                        <option key={method} value={method}>
+                          {method}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Third Row - Category, Transaction Date, Upload Receipt */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      disabled={role === 'superadmin' && !formData.shopId}
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map((cat, index) => (
+                        <option key={cat._id || index} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Transaction Date *</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                      max={new Date().toISOString().split('T')[0]}
+                      required
+                      disabled={role === 'superadmin' && !formData.shopId}
+                    />
+                  </div>
+
+                  {role === 'superadmin' && (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">Upload Receipt (optional)</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.files[0] }))}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        disabled={!formData.shopId}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <textarea
+                    placeholder="Enter transaction description..."
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
+                    rows={3}
+                    disabled={role === 'superadmin' && !formData.shopId}
+                  />
+                </div>
+
+                {/* Submit Buttons */}
+                <div className="flex gap-4 pt-6">
+                  <button
+                    type="submit"
+                    onClick={(e) => handleSubmit(e, false)}
+                    disabled={!isFormValid || saveAndAddAnother}
+                    className={`flex-1 p-4 rounded-lg font-semibold transition ${
+                      isFormValid && !saveAndAddAnother
+                        ? 'bg-blue-500 text-white hover:bg-blue-600'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Save Transaction
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={(e) => handleSubmit(e, true)}
+                    disabled={!isFormValid || saveAndAddAnother}
+                    className={`flex-1 p-4 rounded-lg font-semibold transition ${
+                      isFormValid && !saveAndAddAnother
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Save & Add Another
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => router.back()}
+                    className="px-6 py-4 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+
+              {/* Form Validation Status */}
+              {!isFormValid && (
+                <div className="text-center py-4 text-amber-600 bg-amber-50 rounded-lg border border-amber-200 mt-4">
+                  <p>Please fill in all required fields to enable submission.</p>
+                </div>
               )}
 
               {/* No Shop Selected Message */}
               {role === 'superadmin' && !formData.shopId && (
-                <div className="text-center py-10 text-gray-500">
-                  <p>Please select a shop to create transactions.</p>
+                <div className="text-center py-4 text-amber-600 bg-amber-50 rounded-lg border border-amber-200">
+                  <p>Please select a shop first to enable form fields.</p>
                 </div>
               )}
             </>

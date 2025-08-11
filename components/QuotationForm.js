@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { X, Plus, Loader2, FileText } from 'lucide-react';
 import Link from 'next/link';
+import api from '../lib/api'; // Import api for customer creation
+import { toast } from 'react-toastify';
 
 const QuotationForm = ({
   customers,
@@ -23,6 +25,14 @@ const QuotationForm = ({
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [showProductDropdown, setShowProductDropdown] = useState({});
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showCustomerForm, setShowCustomerForm] = useState(false); // State for new customer form
+  const [newCustomerPhone, setNewCustomerPhone] = useState(''); // State for new customer's phone
+  const [localCustomers, setLocalCustomers] = useState(customers); // Local customer state to update list
+
+  // Sync local customers with prop changes
+  useEffect(() => {
+    setLocalCustomers(customers);
+  }, [customers]);
 
   // Enhanced form submission with loading state
   const handleFormSubmit = async (e) => {
@@ -64,6 +74,54 @@ const QuotationForm = ({
     }
   };
 
+  // Handle customer search input
+  const handleCustomerSearchChange = (e) => {
+    const value = e.target.value;
+    setCustomerSearch(value);
+    setShowCustomerDropdown(true);
+    // Show new customer form if no exact match and input is not empty
+    const customerExists = localCustomers.some(c => 
+      c.name.toLowerCase() === value.toLowerCase()
+    );
+    setShowCustomerForm(!customerExists && value.trim() !== '');
+  };
+
+  // Handle selecting a customer from dropdown
+  const handleSelectCustomer = (customer) => {
+    handleQuotationChange({ target: { name: 'customerId', value: customer._id } });
+    setCustomerSearch(customer.name);
+    setShowCustomerDropdown(false);
+    setShowCustomerForm(false);
+  };
+
+  // Handle adding a new customer
+  const handleAddCustomer = async () => {
+    try {
+      const shopId = localStorage.getItem('shopId') || quotationForm.shopId;
+      if (!shopId) {
+        toast.error('Shop context required for adding customers');
+        return;
+      }
+      
+      const { data } = await api.post('/customers', {
+        name: customerSearch,
+        phone: newCustomerPhone,
+        shopId: shopId === 'all' ? null : shopId, // Handle 'all' shops case
+      });
+      
+      setLocalCustomers(prev => [...prev, data]);
+      handleQuotationChange({ target: { name: 'customerId', value: data._id } });
+      setCustomerSearch(data.name);
+      setShowCustomerForm(false);
+      setNewCustomerPhone('');
+      setShowCustomerDropdown(false);
+      toast.success('Customer added successfully!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add customer.');
+      console.error('Add customer error:', err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <form onSubmit={handleFormSubmit} className="space-y-6">
@@ -95,27 +153,20 @@ const QuotationForm = ({
             </label>
             <input
               type="text"
-              placeholder="Search customers..."
+              placeholder="Search or add customer..."
               value={customerSearch}
-              onChange={(e) => {
-                setCustomerSearch(e.target.value);
-                setShowCustomerDropdown(true);
-              }}
+              onChange={handleCustomerSearchChange}
               onFocus={() => setShowCustomerDropdown(true)}
               disabled={isGenerating}
               className="mt-1 p-3 border border-gray-300 rounded-lg w-full focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {showCustomerDropdown && !isGenerating && (
               <ul className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                {customers.length > 0 ? (
-                  customers.map((customer) => (
+                {localCustomers.length > 0 ? (
+                  localCustomers.map((customer) => (
                     <li
                       key={customer._id}
-                      onClick={() => {
-                        handleQuotationChange({ target: { name: 'customerId', value: customer._id } });
-                        setCustomerSearch(customer.name);
-                        setShowCustomerDropdown(false);
-                      }}
+                      onClick={() => handleSelectCustomer(customer)}
                       className="px-4 py-2 text-sm hover:bg-indigo-50 cursor-pointer"
                     >
                       {customer.name} {customer.phone ? `(${customer.phone})` : ''}
@@ -129,6 +180,30 @@ const QuotationForm = ({
             <input type="hidden" name="customerId" value={quotationForm.customerId} />
           </div>
         </div>
+
+        {/* New Customer Form */}
+        {showCustomerForm && !isGenerating && (
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 space-y-4">
+            <h4 className="text-lg font-semibold text-blue-800">Add New Customer</h4>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-blue-700">Phone (optional)</label>
+              <input
+                type="tel"
+                placeholder="Enter phone number"
+                value={newCustomerPhone}
+                onChange={(e) => setNewCustomerPhone(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleAddCustomer}
+              className="w-full py-3 px-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium"
+            >
+              Add Customer
+            </button>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">

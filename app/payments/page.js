@@ -1062,16 +1062,7 @@ export default function Transactions() {
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-300">Due Date (optional)</label>
-                  <input
-                    type="date"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-                    className="w-full p-3 bg-gray-700 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition"
-                    aria-label="Due Date"
-                  />
-                </div>
+              
               </div>
 
               {/* Submit Button */}

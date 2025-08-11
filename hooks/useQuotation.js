@@ -181,7 +181,7 @@ useEffect(() => {
   const handleShareWhatsApp = () => {
  
     // Clean the phone number - remove spaces, dashes, and ensure proper format
-    let cleanPhone = '03239119309';
+    let cleanPhone = '03335093223';
     
     // Handle Pakistani phone numbers
     if (cleanPhone.startsWith('0')) {

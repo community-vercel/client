@@ -11,15 +11,33 @@ const PAYMENT_METHODS = ['Credit Card', 'Debit Card', 'Bank Transfer', 'Cash', '
 
 export default function AddTransaction() {
   const router = useRouter();
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  const [role, setRole] = useState(null);
-  const [shopId, setShopId] = useState(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [customers, setCustomers] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [shops, setShops] = useState([]);
-  const [userid, setUserid] = useState(null);
+  const inputRef = useRef(null);
+  
+  // Get initial values synchronously to avoid unnecessary re-renders
+  const initialData = useMemo(() => {
+    if (typeof window === 'undefined') return { token: null, role: null, shopId: null, userid: null };
+    return {
+      token: localStorage.getItem('token'),
+      role: localStorage.getItem('role'),
+      shopId: localStorage.getItem('shopId'),
+      userid: localStorage.getItem('userid')
+    };
+  }, []);
+
+  const [state, setState] = useState({
+    role: initialData.role,
+    shopId: initialData.shopId,
+    userid: initialData.userid,
+    error: '',
+    loading: true,
+    customers: [],
+    categories: [],
+    shops: [],
+    showCustomerForm: false,
+    isDropdownOpen: false,
+    searchResults: [],
+    saveAndAddAnother: false
+  });
   
   const [formData, setFormData] = useState({
     transactionType: '',
@@ -34,173 +52,207 @@ export default function AddTransaction() {
     paymentMethod: '',
     date: new Date().toISOString().split('T')[0],
     image: null,
-    user: null,
-    shopId: null,
+    user: initialData.userid,
+    shopId: initialData.shopId,
   });
-  
-  const [showCustomerForm, setShowCustomerForm] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [saveAndAddAnother, setSaveAndAddAnother] = useState(false);
-  const inputRef = useRef(null);
 
-  // Memoized form validation
+  // Optimized form validation - only recalculates when necessary fields change
   const isFormValid = useMemo(() => {
-    const requiredFields = [
-      'customerName',
-      'transactionType',
-      'totalAmount',
-      'paymentMethod',
-      'date'
-    ];
-
-    // For superadmin, shopId is also required
-    if (role === 'superadmin') {
-      requiredFields.push('shopId');
+    const { customerName, transactionType, totalAmount, paymentMethod, date, shopId: formShopId } = formData;
+    const { role } = state;
+    
+    // Fast check for empty required fields
+    if (!customerName?.trim() || !transactionType || !totalAmount || !paymentMethod || !date) {
+      return false;
     }
 
-    // Check if amount field is filled based on transaction type
-    const amountField = formData.transactionType === 'payable' ? 'payable' : 'receivable';
-    if (formData.transactionType) {
-      requiredFields.push(amountField);
+    // For superadmin, shopId is required
+    if (role === 'superadmin' && !formShopId) {
+      return false;
     }
 
-    return requiredFields.every(field => {
-      const value = formData[field];
-      return value !== null && value !== undefined && value.toString().trim() !== '';
+    // Check amount field based on transaction type
+    const amountField = transactionType === 'payable' ? formData.payable : formData.receivable;
+    return amountField && amountField.toString().trim() !== '';
+  }, [
+    formData.customerName, 
+    formData.transactionType, 
+    formData.totalAmount, 
+    formData.paymentMethod, 
+    formData.date, 
+    formData.shopId, 
+    formData.payable, 
+    formData.receivable, 
+    state.role
+  ]);
+
+  // Optimized Fuse instance - only recreate when customers change
+  const fuse = useMemo(() => {
+    if (state.customers.length === 0) return null;
+    return new Fuse(state.customers, { 
+      keys: ['name'], 
+      threshold: 0.3, 
+      includeScore: true 
     });
-  }, [formData, role]);
+  }, [state.customers]);
 
-  // Initialize user data and shop context
-  useEffect(() => {
-    const initializeUserData = async () => {
-      try {
-        const userRole = localStorage.getItem('role');
-        const storedShopId = localStorage.getItem('shopId');
-        const userId = localStorage.getItem('userid');
+  // Batch state updates for better performance
+  const updateState = useCallback((updates) => {
+    setState(prev => ({ ...prev, ...updates }));
+  }, []);
 
-        if (userRole) setRole(userRole);
-        if (storedShopId) setShopId(storedShopId);
-        if (userId) {
-          setUserid(userId);
-          setFormData(prev => ({ ...prev, user: userId }));
-        }
+  const updateFormData = useCallback((updates) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  }, []);
 
-        if (!token) {
-          router.push('/auth/signin');
-          return;
-        }
-
-        if (userRole !== 'superadmin' && !storedShopId) {
-          setError('No shop assigned to user. Please contact administrator.');
-          setLoading(false);
-          return;
-        }
-
-        if (userRole === 'superadmin') {
-          const response = await api.get('/shops');
-          setShops(response.data || []);
-        } else if (storedShopId) {
-          setFormData(prev => ({ ...prev, shopId: storedShopId }));
-        }
-
-        const shopParam = userRole === 'superadmin' && formData.shopId 
-          ? formData.shopId 
-          : storedShopId;
-          
-        if (shopParam) {
-          await fetchShopSpecificData(shopParam);
-        }
-      } catch (err) {
-        console.error('Error initializing user data:', err);
-        setError('Failed to initialize user data');
-        setLoading(false);
-      }
-    };
-
-    initializeUserData();
-  }, [router, token]);
-
-  // Fetch customers and categories for specific shop only
-  const fetchShopSpecificData = useCallback(async (selectedShopId) => {
+  // Optimized data fetching with abort controller
+  const fetchShopSpecificData = useCallback(async (selectedShopId, abortSignal) => {
     if (!selectedShopId) {
-      setLoading(false);
+      updateState({ loading: false });
       return;
     }
 
     try {
-      setLoading(true);
+      updateState({ loading: true, error: '' });
       
-      const [customersRes, categoriesRes] = await Promise.all([
-        api.get(`/customers?shopId=${selectedShopId}`),
-        api.get(`/categories?shopId=${selectedShopId}`),
+      // Use Promise.allSettled for better error handling
+      const [customersRes, categoriesRes] = await Promise.allSettled([
+        api.get(`/customers?shopId=${selectedShopId}`, { signal: abortSignal }),
+        api.get(`/categories?shopId=${selectedShopId}`, { signal: abortSignal }),
       ]);
 
-      setCustomers(customersRes.data || []);
-      setCategories(categoriesRes.data || []);
-      setError('');
-    } catch (err) {
-      setError('Failed to load shop data. Please try again later.');
-      console.error('Fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      if (abortSignal?.aborted) return;
 
-  // Handle shop change (for superadmin) - fetch shop-specific data
-  const handleShopChange = (newShopId) => {
-    setFormData(prev => ({ ...prev, shopId: newShopId }));
+      const customers = customersRes.status === 'fulfilled' ? customersRes.value.data || [] : [];
+      const categories = categoriesRes.status === 'fulfilled' ? categoriesRes.value.data || [] : [];
+
+      updateState({ 
+        customers, 
+        categories, 
+        loading: false,
+        error: customersRes.status === 'rejected' || categoriesRes.status === 'rejected' 
+          ? 'Failed to load some shop data' 
+          : ''
+      });
+    } catch (err) {
+      if (!abortSignal?.aborted) {
+        updateState({ 
+          error: 'Failed to load shop data. Please try again later.', 
+          loading: false 
+        });
+        console.error('Fetch error:', err);
+      }
+    }
+  }, [updateState]);
+
+  // Initialize user data with abort controller
+  useEffect(() => {
+    if (!initialData.token) {
+      router.push('/auth/signin');
+      return;
+    }
+
+    const controller = new AbortController();
+    
+    const initializeUserData = async () => {
+      try {
+        if (initialData.role !== 'superadmin' && !initialData.shopId) {
+          updateState({ 
+            error: 'No shop assigned to user. Please contact administrator.', 
+            loading: false 
+          });
+          return;
+        }
+
+        if (initialData.role === 'superadmin') {
+          const response = await api.get('/shops', { signal: controller.signal });
+          if (!controller.signal.aborted) {
+            updateState({ shops: response.data || [] });
+          }
+        }
+
+        const shopParam = initialData.role === 'superadmin' && formData.shopId 
+          ? formData.shopId 
+          : initialData.shopId;
+          
+        if (shopParam) {
+          await fetchShopSpecificData(shopParam, controller.signal);
+        } else {
+          updateState({ loading: false });
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error('Error initializing user data:', err);
+          updateState({ error: 'Failed to initialize user data', loading: false });
+        }
+      }
+    };
+
+    initializeUserData();
+
+    return () => controller.abort();
+  }, [router, fetchShopSpecificData, initialData.token, initialData.role, initialData.shopId, formData.shopId, updateState]);
+
+  // Debounced input change handler
+  const debounceTimeoutRef = useRef();
+  const handleInputChange = useCallback((e) => {
+    const value = e.target.value;
+    updateFormData({ customerName: value });
+    
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Debounce search to avoid excessive API calls
+    debounceTimeoutRef.current = setTimeout(() => {
+      const customerExists = state.customers.some(c => 
+        c.name.toLowerCase() === value.toLowerCase()
+      );
+      
+      updateState({ showCustomerForm: !customerExists && value.trim() !== '' });
+      
+      if (value.trim() && fuse) {
+        const results = fuse.search(value).slice(0, 10).map(result => result.item); // Limit results
+        updateState({ 
+          searchResults: results, 
+          isDropdownOpen: results.length > 0 
+        });
+      } else {
+        updateState({ 
+          searchResults: [], 
+          isDropdownOpen: false 
+        });
+      }
+    }, 150); // 150ms debounce
+  }, [state.customers, fuse, updateFormData, updateState]);
+
+  const handleSelectCustomer = useCallback((customer) => {
+    updateFormData({ 
+      customerId: customer._id, 
+      customerName: customer.name 
+    });
+    updateState({ 
+      showCustomerForm: false, 
+      isDropdownOpen: false, 
+      searchResults: [] 
+    });
+  }, [updateFormData, updateState]);
+
+  const handleShopChange = useCallback((newShopId) => {
+    updateFormData({ shopId: newShopId });
     if (newShopId) {
       fetchShopSpecificData(newShopId);
     } else {
-      setCustomers([]);
-      setCategories([]);
+      updateState({ customers: [], categories: [] });
     }
-  };
+  }, [updateFormData, updateState, fetchShopSpecificData]);
 
-  // Customer search in form - only searches current shop's customers
-  const fuse = useMemo(() => new Fuse(customers, { 
-    keys: ['name'], 
-    threshold: 0.3, 
-    includeScore: true 
-  }), [customers]);
-
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    setFormData(prev => ({ ...prev, customerName: value }));
-    
-    const customerExists = customers.some(c => 
-      c.name.toLowerCase() === value.toLowerCase()
-    );
-    setShowCustomerForm(!customerExists && value.trim() !== '');
-    
-    if (value.trim()) {
-      const results = fuse.search(value).map(result => result.item);
-      setSearchResults(results);
-      setIsDropdownOpen(results.length > 0);
-    } else {
-      setSearchResults([]);
-      setIsDropdownOpen(false);
-    }
-  };
-
-  const handleSelectCustomer = (customer) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      customerId: customer._id, 
-      customerName: customer.name 
-    }));
-    setShowCustomerForm(false);
-    setIsDropdownOpen(false);
-    setSearchResults([]);
-  };
-
-  // Add new customer - only to current shop
-  const handleAddCustomer = async () => {
+  const handleAddCustomer = useCallback(async () => {
     try {
-      const shopIdToUse = formData.shopId || shopId;
+      const shopIdToUse = formData.shopId || state.shopId;
       if (!shopIdToUse) {
-        setError('Shop context required for adding customers');
+        updateState({ error: 'Shop context required for adding customers' });
         return;
       }
       
@@ -210,42 +262,38 @@ export default function AddTransaction() {
         shopId: shopIdToUse,
       });
       
-      setFormData(prev => ({ 
-        ...prev, 
+      updateFormData({ 
         customerId: data._id, 
         customerName: data.name 
-      }));
-      setCustomers(prev => [...prev, data]);
-      setShowCustomerForm(false);
+      });
+      
+      updateState({ 
+        customers: [...state.customers, data],
+        showCustomerForm: false 
+      });
+      
       toast.success('Customer added successfully!');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to add customer.');
+      updateState({ error: err.response?.data?.message || 'Failed to add customer.' });
       console.error('Add customer error:', err);
     }
-  };
+  }, [formData.customerName, formData.phone, formData.shopId, state.shopId, state.customers, updateFormData, updateState]);
 
-  // Form submission
-  const handleSubmit = async (e, addAnother = false) => {
+  const handleSubmit = useCallback(async (e, addAnother = false) => {
     e.preventDefault();
     if (!isFormValid) return;
     
-    setError('');
-    setSaveAndAddAnother(addAnother);
+    updateState({ error: '', saveAndAddAnother: addAnother });
 
-    const shopIdToUse = formData.shopId || shopId;
+    const shopIdToUse = formData.shopId || state.shopId;
     if (!shopIdToUse) {
-      setError('Shop context required for transaction');
+      updateState({ error: 'Shop context required for transaction' });
       return;
     }
 
     try {
       const form = new FormData();
-
-      const transactionData = {
-        ...formData,
-        shopId: shopIdToUse,
-        user: userid,
-      };
+      const transactionData = { ...formData, shopId: shopIdToUse, user: state.userid };
 
       Object.entries(transactionData).forEach(([key, value]) => {
         if (value !== null && value !== '') {
@@ -260,15 +308,10 @@ export default function AddTransaction() {
       toast.success('Transaction added successfully!');
       
       if (addAnother) {
-        const currentCustomer = {
-          customerId: formData.customerId,
-          customerName: formData.customerName
-        };
-        
         setFormData({
           transactionType: '',
-          customerId:'',
-          customerName:'',
+          customerId: '',
+          customerName: '',
           phone: '',
           totalAmount: '',
           payable: '',
@@ -278,49 +321,64 @@ export default function AddTransaction() {
           paymentMethod: '',
           date: new Date().toISOString().split('T')[0],
           image: null,
-          user: userid,
+          user: state.userid,
           shopId: shopIdToUse,
         });
-        setShowCustomerForm(false);
-        setIsDropdownOpen(false);
-        setSearchResults([]);
+        updateState({ 
+          showCustomerForm: false, 
+          isDropdownOpen: false, 
+          searchResults: [] 
+        });
       } else {
-        setTimeout(() => {
-          router.push('/payments');
-        }, 1500);
+        setTimeout(() => router.push('/payments'), 1500);
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Error saving transaction.');
+      updateState({ error: err.response?.data?.message || 'Error saving transaction.' });
       console.error('Submit error:', err);
     } finally {
-      setSaveAndAddAnother(false);
+      updateState({ saveAndAddAnother: false });
     }
-  };
+  }, [isFormValid, formData, state.shopId, state.userid, updateState, router]);
 
-  // Click outside handler
+  // Click outside handler with ref cleanup
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (inputRef.current && !inputRef.current.contains(event.target)) {
         const isDropdownClick = event.target.closest('.customer-dropdown-item');
         if (!isDropdownClick) {
-          setIsDropdownOpen(false);
+          updateState({ isDropdownOpen: false });
         }
       }
     };
     
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('mousedown', handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [updateState]);
 
-  // Fetch shop-specific data when formData.shopId changes (for superadmin)
-  useEffect(() => {
-    if (role === 'superadmin' && formData.shopId) {
-      fetchShopSpecificData(formData.shopId);
-    }
-  }, [formData.shopId, role, fetchShopSpecificData]);
+  // Memoized form handlers for better performance
+  const handleTransactionTypeChange = useCallback((e) => {
+    updateFormData({ 
+      transactionType: e.target.value,
+      payable: '',
+      receivable: ''
+    });
+  }, [updateFormData]);
 
+  const handleTotalAmountChange = useCallback((e) => {
+    const totalAmount = e.target.value;
+    updateFormData({
+      totalAmount,
+      [formData.transactionType === 'payable' ? 'payable' : 'receivable']: totalAmount,
+    });
+  }, [formData.transactionType, updateFormData]);
 
-  
+  const { role, error, loading, customers, categories, shops, showCustomerForm, isDropdownOpen, searchResults, saveAndAddAnother } = state;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 font-sans py-20">
       <ToastContainer theme="colored" position="top-right" />
@@ -342,7 +400,7 @@ export default function AddTransaction() {
           ) : (
             <>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* First Row - Shop (for superadmin), Customer, Transaction Type */}
+                {/* First Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {role === 'superadmin' ? (
                     <div className="space-y-2">
@@ -367,7 +425,7 @@ export default function AddTransaction() {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.files[0] }))}
+                        onChange={(e) => updateFormData({ image: e.target.files[0] })}
                         className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       />
                     </div>
@@ -382,10 +440,12 @@ export default function AddTransaction() {
                       value={formData.customerName}
                       onChange={handleInputChange}
                       onFocus={() => {
-                        if (formData.customerName.trim()) {
-                          const results = fuse.search(formData.customerName).map(result => result.item);
-                          setSearchResults(results);
-                          setIsDropdownOpen(results.length > 0);
+                        if (formData.customerName.trim() && fuse) {
+                          const results = fuse.search(formData.customerName).slice(0, 10).map(result => result.item);
+                          updateState({ 
+                            searchResults: results, 
+                            isDropdownOpen: results.length > 0 
+                          });
                         }
                       }}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
@@ -418,12 +478,7 @@ export default function AddTransaction() {
                     <label className="block text-sm font-medium text-gray-700">Transaction Type *</label>
                     <select
                       value={formData.transactionType}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        transactionType: e.target.value,
-                        payable: '',
-                        receivable: ''
-                      }))}
+                      onChange={handleTransactionTypeChange}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       required
                       disabled={role === 'superadmin' && !formData.shopId}
@@ -446,7 +501,7 @@ export default function AddTransaction() {
                         type="tel"
                         placeholder="Enter phone number"
                         value={formData.phone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        onChange={(e) => updateFormData({ phone: e.target.value })}
                         className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       />
                     </div>
@@ -461,7 +516,7 @@ export default function AddTransaction() {
                   </div>
                 )}
 
-                {/* Second Row - Total Amount, Amount Type, Payment Method */}
+                {/* Second Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Total Amount *</label>
@@ -470,14 +525,7 @@ export default function AddTransaction() {
                       step="0.01"
                       placeholder="0.00"
                       value={formData.totalAmount}
-                      onChange={(e) => {
-                        const totalAmount = e.target.value;
-                        setFormData(prev => ({
-                          ...prev,
-                          totalAmount,
-                          [prev.transactionType === 'payable' ? 'payable' : 'receivable']: totalAmount,
-                        }));
-                      }}
+                      onChange={handleTotalAmountChange}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       required
                       disabled={role === 'superadmin' && !formData.shopId}
@@ -494,10 +542,9 @@ export default function AddTransaction() {
                       placeholder="0.00"
                       value={formData.transactionType === 'payable' ? formData.payable : formData.receivable}
                       onChange={(e) =>
-                        setFormData(prev => ({
-                          ...prev,
-                          [prev.transactionType === 'payable' ? 'payable' : 'receivable']: e.target.value,
-                        }))
+                        updateFormData({
+                          [formData.transactionType === 'payable' ? 'payable' : 'receivable']: e.target.value,
+                        })
                       }
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       required
@@ -505,12 +552,11 @@ export default function AddTransaction() {
                     />
                   </div>
 
-                  {/* Payment Method */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Payment Method *</label>
                     <select
                       value={formData.paymentMethod}
-                      onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                      onChange={(e) => updateFormData({ paymentMethod: e.target.value })}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       required
                       disabled={role === 'superadmin' && !formData.shopId}
@@ -525,13 +571,13 @@ export default function AddTransaction() {
                   </div>
                 </div>
 
-                {/* Third Row - Category, Transaction Date, Upload Receipt */}
+                {/* Third Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Category</label>
                     <select
                       value={formData.category}
-                      onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      onChange={(e) => updateFormData({ category: e.target.value })}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       disabled={role === 'superadmin' && !formData.shopId}
                     >
@@ -549,7 +595,7 @@ export default function AddTransaction() {
                     <input
                       type="date"
                       value={formData.date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                      onChange={(e) => updateFormData({ date: e.target.value })}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                       max={new Date().toISOString().split('T')[0]}
                       required
@@ -563,7 +609,7 @@ export default function AddTransaction() {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.files[0] }))}
+                        onChange={(e) => updateFormData({ image: e.target.files[0] })}
                         className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                         disabled={!formData.shopId}
                       />
@@ -577,7 +623,7 @@ export default function AddTransaction() {
                   <textarea
                     placeholder="Enter transaction description..."
                     value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) => updateFormData({ description: e.target.value })}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
                     rows={3}
                     disabled={role === 'superadmin' && !formData.shopId}
@@ -640,5 +686,8 @@ export default function AddTransaction() {
         </div>
       </div>
     </div>
-  );
-}
+  
+
+
+        
+        )}

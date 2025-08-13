@@ -578,7 +578,7 @@ export default function TransactionTable({ filters, onEdit, onDelete, refresh })
             </div>
             
             <p className="text-gray-600 mb-6 leading-relaxed">
-              Are you sure you want to delete the transaction for customer <strong>"{deleteModal.customerName}"</strong>? 
+              Are you sure you want to delete the transaction for customer <strong>{deleteModal.customerName}</strong>? 
               This action cannot be undone.
             </p>
             

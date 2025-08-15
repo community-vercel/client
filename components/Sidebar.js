@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../lib/api'; // Import api for customer creation
+import { toast } from 'react-toastify';
+
 import { Menu, X, Home, Download, Upload, BarChart, UserCheck2, LucideMenuSquare, UserSquareIcon, Settings, LogOut, Database, Sparkles } from 'lucide-react';
 
 export default function Sidebar() {
@@ -17,16 +20,42 @@ export default function Sidebar() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+// components/Navbar.jsx (or wherever handleLogout is used)
+const handleLogout = async () => {
+  try {
+    // Optionally notify backend to invalidate refresh token
+    await api.post('/auth/logout', {
+      refreshToken: localStorage.getItem('refreshToken'),
+    });
 
-  const handleLogout = () => {
+    // Clear all localStorage items
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('userid');
     localStorage.removeItem('role');
     localStorage.removeItem('shopId');
 
     setIsOpen(false);
     router.push('/login');
-  };
+    toast.info('Logged out successfully', {
+      position: 'top-right',
+    });
+  } catch (error) {
+    console.error('Logout failed:', error);
+    // Proceed with client-side cleanup even if backend call fails
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userid');
+    localStorage.removeItem('role');
+    localStorage.removeItem('shopId');
+
+    setIsOpen(false);
+    router.push('/login');
+    toast.error('Logout failed, but session cleared', {
+      position: 'top-right',
+    });
+  }
+};
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 

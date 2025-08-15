@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect,useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import Link from 'next/link';
@@ -135,53 +135,86 @@ export default function ManageColors() {
     router.push('/auth/signin');
   };
   
-  const quickActions = [
-    { title: 'Manage Items', href: '/products', icon: <Package className="w-4 h-4" />, color: 'bg-emerald-500' },
-    { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-4 h-4" />, color: 'bg-blue-500' },
-    { title: 'Manage Product', href: '/product', icon: <Plus className="w-4 h-4" />, color: 'bg-purple-500' },
-    { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-4 h-4" />, color: 'bg-orange-500' },
-  ];
+  const quickActions = useMemo(
+   () => [
+     {
+       title: 'Manage Items',
+       href: '/products',
+       icon: <Package className="w-5 h-5" />,
+       description: 'View and edit products',
+     },
+     {
+       title: 'Manage Quantity',
+       href: '/products/items',
+       icon: <BarChart3 className="w-5 h-5" />,
+       description: 'Update stock levels',
+     },
+     {
+       title: 'Manage Product',
+       href: '/product',
+       icon: <Plus className="w-5 h-5" />,
+       description: 'Add new products',
+     },
+     {
+       title: 'Manage Colors',
+       href: '/colors',
+       icon: <Palette className="w-5 h-5" />,
+       description: 'Color management',
+     },
+   ],
+   []
+ );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-22">
       {/* Enhanced Header */}
-      <header className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-b-lg shadow-lg p-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Package className="w-6 h-6 text-indigo-200" />
-            <div>
-              <h1 className="text-xl font-bold">Inventory Dashboard</h1>
-              <p className="text-sm text-indigo-200">Manage your product catalog</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 rounded-full hover:bg-indigo-700 transition-colors"
-            aria-label="Toggle sidebar"
-          >
-            {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </header>
+     <header className="bg-white border border-gray-200 shadow-md rounded-lg p-4 mb-4">
+  <div className="flex justify-between items-center">
+    <div className="flex items-center space-x-3">
+      <div className="bg-gray-200 p-2 rounded-lg">
+        <Package className="w-6 h-6 text-gray-600" />
+      </div>
+      <div>
+        <h1 className="text-xl font-semibold text-gray-800">Inventory Dashboard</h1>
+        <p className="text-sm text-gray-600">Manage your stock efficiently</p>
+      </div>
+    </div>
+    <button
+      onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+      className="p-2 rounded-lg bg-gray-200 text-gray-600 hover:bg-gray-300 transition duration-200"
+      aria-label="Toggle sidebar"
+    >
+      {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+    </button>
+  </div>
+</header>
 
-      {/* Sidebar (Quick Actions) */}
-      {isSidebarOpen && (
-        <div className="mt-4 mx-4 bg-white rounded-lg shadow-lg p-4 animate-slide-in">
-          <h2 className="text-sm font-semibold text-gray-800 mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {quickActions.map((action, index) => (
-              <Link
-                key={index}
-                href={action.href}
-                className={`flex items-center space-x-2 p-3 rounded-lg ${action.color} text-white hover:opacity-90 text-sm font-medium transition-colors`}
-              >
-                {action.icon}
-                <span>{action.title}</span>
-              </Link>
-            ))}
+{isSidebarOpen && (
+  <div className="mb-4 bg-white border border-gray-200 rounded-lg shadow-md p-4">
+    <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="w-2 h-2 bg-gray-600 rounded-full"></div>
+      Quick Actions
+    </h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {quickActions.map((action, index) => (
+        <Link
+          key={index}
+          href={action.href}
+          className="bg-gray-100 p-4 rounded-lg text-gray-800 hover:bg-gray-200 transition duration-200"
+        >
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center justify-between">
+              {action.icon}
+              <div className="text-gray-400 text-lg">→</div>
+            </div>
+            <h3 className="font-medium text-base">{action.title}</h3>
+            <p className="text-sm text-gray-600">{action.description}</p>
           </div>
-        </div>
-      )}
+        </Link>
+      ))}
+    </div>
+  </div>
+)}
 
       <main className="p-6">
         <div className="max-w-7xl mx-auto">

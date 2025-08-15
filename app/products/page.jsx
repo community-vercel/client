@@ -64,188 +64,149 @@ export default function Dashboard() {
     toast.info('Logged out successfully', { autoClose: 2000 });
   };
 
-  const quickActions = [
-    {
-      title: 'Manage Items',
-      href: '/products',
-      icon: <Package className="w-6 h-6" />,
-      color: 'from-emerald-500 to-teal-600',
-      hoverColor: 'hover:from-emerald-600 hover:to-teal-700',
-    },
-    {
-      title: 'Manage Quantity',
-      href: '/products/items',
-      icon: <BarChart3 className="w-6 h-6" />,
-      color: 'from-blue-500 to-indigo-600',
-      hoverColor: 'hover:from-blue-600 hover:to-indigo-700',
-    },
-    {
-      title: 'Manage Product',
-      href: '/product',
-      icon: <Plus className="w-6 h-6" />,
-      color: 'from-purple-500 to-pink-600',
-      hoverColor: 'hover:from-purple-600 hover:to-pink-700',
-    },
-    {
-      title: 'Manage Colors',
-      href: '/colors',
-      icon: <Palette className="w-6 h-6" />,
-      color: 'from-orange-500 to-red-600',
-      hoverColor: 'hover:from-orange-600 hover:to-red-700',
-    },
-    {
-      title: 'Create Quotation',
-      href:'/quotations',
-      icon: <FileText className="w-6 h-6" />,
-      color: 'from-teal-500 to-cyan-600',
-      hoverColor: 'hover:from-teal-600 hover:to-cyan-700',
-    },
-  ];
+const quickActions = [
+  { title: 'Manage Items', href: '/products', icon: <Package className="w-5 h-5" /> },
+  { title: 'Manage Quantity', href: '/products/items', icon: <BarChart3 className="w-5 h-5" /> },
+  { title: 'Manage Product', href: '/product', icon: <Plus className="w-5 h-5" /> },
+  { title: 'Manage Colors', href: '/colors', icon: <Palette className="w-5 h-5" /> },
+  { title: 'Create Quotation', href: '/quotations', icon: <FileText className="w-5 h-5" /> },
+];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 font-sans py-20">
       <ToastContainer theme="colored" position="top-right" />
       
-      {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-indigo-700 to-purple-800 text-white transform transition-transform duration-300 ease-in-out ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:hidden z-50 shadow-2xl`}
+    {/* Sidebar */}
+{/* Sidebar */}
+<div
+  className={`fixed inset-y-0 left-0 w-64 bg-gray-800 text-white transform transition-transform duration-300 ease-in-out ${
+    isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+  } lg:hidden z-50 shadow-md`}
+>
+  <div className="p-4">
+    <div className="flex justify-between items-center mb-6">
+      <h2 className="text-lg font-semibold">Menu</h2>
+      <button
+        onClick={() => setIsSidebarOpen(false)}
+        className="p-2 rounded hover:bg-gray-700"
       >
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl font-bold">Menu</h2>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="text-white hover:bg-white/20 p-2 rounded-xl"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          <nav className="space-y-2">
-            {quickActions.map((action, index) => (
-              action.href ? (
-                <Link
-                  key={index}
-                  href={action.href}
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-white/20 transition-all duration-200"
-                  onClick={() => setIsSidebarOpen(false)}
-                >
-                  {action.icon}
-                  <span>{action.title}</span>
-                </Link>
-              ) : (
-                <button
-                  key={index}
-                  onClick={action.onClick}
-                  className="flex items-center space-x-3 p-3 w-full text-left rounded-lg hover:bg-white/20 transition-all duration-200"
-                >
-                  {action.icon}
-                  <span>{action.title}</span>
-                </button>
-              )
-            ))}
-            <button
-              onClick={handleLogout}
-              className="flex items-center space-x-3 p-3 w-full text-left rounded-lg hover:bg-red-500/20 transition-all duration-200"
-            >
-              <LogOut className="w-6 h-6" />
-              <span>Logout</span>
-            </button>
-          </nav>
+        <X className="w-5 h-5" />
+      </button>
+    </div>
+    <nav className="space-y-1">
+      {quickActions.map((action, index) => (
+        action.href ? (
+          <Link
+            key={index}
+            href={action.href}
+            className="flex items-center space-x-2 p-2 rounded hover:bg-gray-700"
+            onClick={() => setIsSidebarOpen(false)}
+          >
+            {action.icon}
+            <span>{action.title}</span>
+          </Link>
+        ) : (
+          <button
+            key={index}
+            onClick={action.onClick}
+            className="flex items-center space-x-2 p-2 w-full text-left rounded hover:bg-gray-700"
+          >
+            {action.icon}
+            <span>{action.title}</span>
+          </button>
+        )
+      ))}
+      <button
+        onClick={handleLogout}
+        className="flex items-center space-x-2 p-2 w-full text-left rounded hover:bg-gray-700"
+      >
+        <LogOut className="w-5 h-5" />
+        <span>Logout</span>
+      </button>
+    </nav>
+  </div>
+</div>
+
+{/* Header */}
+<header className="bg-gray-800 text-white shadow-md">
+  <div className="p-4 flex justify-between items-center">
+    <div className="flex items-center space-x-3">
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="lg:hidden p-2 rounded hover:bg-gray-700"
+      >
+        {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+      </button>
+      <div className="flex items-center space-x-2">
+        <Package className="w-6 h-6" />
+        <div>
+          <h1 className="text-xl font-semibold">Inventory Dashboard</h1>
+          <p className="text-sm text-gray-300">Manage your inventory</p>
         </div>
       </div>
-
-      {/* Header */}
-      <header className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-2xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/10 backdrop-blur-sm"></div>
-        <div className="relative p-6 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden text-white hover:bg-white/20 p-2 rounded-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/30"
-            >
-              {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-            <div className="flex items-center space-x-3">
-              <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                <Package className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">
-                  Inventory Dashboard
-                </h1>
-                <p className="text-blue-100 text-sm font-medium">Manage your inventory with ease</p>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setIsScanning(!isScanning)}
-              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white/30 ${
-                isScanning
-                  ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/25'
-                  : 'bg-yellow-400 hover:bg-yellow-500 text-gray-900 shadow-lg shadow-yellow-400/25'
-              }`}
-            >
-              <Scan className="w-5 h-5" />
-              <span>{isScanning ? 'Stop Scanning' : 'Scan Barcode'}</span>
-            </button>
-            <button
-              onClick={handleLogout}
-              className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl text-white flex items-center space-x-2 transition-all duration-300"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
+    </div>
+    <div className="flex items-center space-x-3">
+      <button
+        onClick={() => setIsScanning(!isScanning)}
+        className={`flex items-center space-x-2 px-4 py-2 rounded font-medium ${
+          isScanning ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+        }`}
+      >
+        <Scan className="w-5 h-5" />
+        <span>{isScanning ? 'Stop Scanning' : 'Scan Barcode'}</span>
+      </button>
+      <button
+        onClick={handleLogout}
+        className="flex items-center space-x-2 px-3 py-2 rounded hover:bg-gray-700"
+      >
+        <LogOut className="w-5 h-5" />
+        <span>Logout</span>
+      </button>
+    </div>
+  </div>
+</header>
 
       <div className="p-6 max-w-7xl mx-auto space-y-8">
        
 
-        {/* Quick Actions Section */}
-        <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 animate-in fade-in">
-          <div className="flex items-center space-x-3 mb-6">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-3 rounded-xl">
-              <Settings className="w-6 h-6 text-white" />
+      {/* Quick Actions Section */}
+<div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+  <div className="flex items-center space-x-2 mb-4">
+    <Settings className="w-5 h-5 text-gray-600" />
+    <h2 className="text-xl font-semibold text-gray-800">Quick Actions</h2>
+  </div>
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+    {quickActions.map((action, index) =>
+      action.href ? (
+        <Link
+          key={index}
+          href={action.href}
+          className="bg-gray-100 p-4 rounded-lg text-gray-800 hover:bg-gray-200 transition duration-200"
+        >
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="p-3 rounded-lg bg-gray-200">
+              {action.icon}
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">Quick Actions</h2>
+            <h3 className="font-medium text-base">{action.title}</h3>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {quickActions.map((action, index) =>
-              action.href ? (
-                <Link
-                  key={index}
-                  href={action.href}
-                  className={`group bg-gradient-to-r ${action.color} ${action.hoverColor} p-6 rounded-2xl text-white shadow-lg transform hover:scale-105 transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-                >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 backdrop-blur-sm">
-                      {action.icon}
-                    </div>
-                    <h3 className="font-semibold text-lg">{action.title}</h3>
-                  </div>
-                </Link>
-              ) : (
-                <button
-                  key={index}
-                  onClick={action.onClick}
-                  className={`group bg-gradient-to-r ${action.color} ${action.hoverColor} p-6 rounded-2xl text-white shadow-lg transform hover:scale-105 transition-all duration-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-                >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="bg-white/20 p-4 rounded-2xl group-hover:bg-white/30 transition-all duration-300 backdrop-blur-sm">
-                      {action.icon}
-                    </div>
-                    <h3 className="font-semibold text-lg">{action.title}</h3>
-                  </div>
-                </button>
-              )
-            )}
+        </Link>
+      ) : (
+        <button
+          key={index}
+          onClick={action.onClick}
+          className="bg-gray-100 p-4 rounded-lg text-gray-800 hover:bg-gray-200 transition duration-200"
+        >
+          <div className="flex flex-col items-center text-center space-y-2">
+            <div className="p-3 rounded-lg bg-gray-200">
+              {action.icon}
+            </div>
+            <h3 className="font-medium text-base">{action.title}</h3>
           </div>
-        </div>
-
+        </button>
+      )
+    )}
+  </div>
+</div>
         {/* Scanner Section */}
         {isScanning && (
           <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 transform animate-in slide-in-from-top duration-500">
@@ -266,7 +227,7 @@ export default function Dashboard() {
 
         {/* Inventory Section */}
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in">
-          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white">
+          <div className="bg-[#757575] to-purple-600 p-6 text-white">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-3">
                 <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">

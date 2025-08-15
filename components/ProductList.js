@@ -221,7 +221,7 @@ export default function ProductList({ products: initialProducts }) {
 
       {/* Main Content */}
       <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="bg-indigo-600 p-4 text-white">
+        <div className="bg-[#757575] p-4 text-white">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <Archive className="w-6 h-6" />

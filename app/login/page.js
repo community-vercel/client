@@ -1,4 +1,6 @@
+// pages/auth.jsx
 'use client';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { login, register } from '../../lib/api';
@@ -6,7 +8,13 @@ import { motion } from 'framer-motion';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ username: '', password: '', confirmPassword: '' });
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+    confirmPassword: '',
+    role: 'user',
+    shopId: '',
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -18,11 +26,15 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        const res = await login({ username: formData.username, password: formData.password });
-        localStorage.setItem('token', res.data.token);
+        const res = await login({
+          username: formData.username,
+          password: formData.password,
+        });
+        localStorage.setItem('token', res.data.accessToken);
+        localStorage.setItem('refreshToken', res.data.refreshToken);
         localStorage.setItem('userid', res.data.user.id);
         localStorage.setItem('role', res.data.user.role);
-        localStorage.setItem('shopId', res.data.user.shopId); // Store shopId
+        localStorage.setItem('shopId', res.data.user.shopId || '');
         router.push('/dashboard');
       } else {
         if (formData.password !== formData.confirmPassword) {
@@ -30,11 +42,17 @@ export default function AuthPage() {
           setLoading(false);
           return;
         }
-        const res = await register({ username: formData.username, password: formData.password });
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('userid', res.data.user.id);
+        const res = await register({
+          username: formData.username,
+          password: formData.password,
+          role: formData.role,
+          shopId: formData.shopId || null,
+        });
+        localStorage.setItem('token', res.data.accessToken);
+        localStorage.setItem('refreshToken', res.data.refreshToken);
+        localStorage.setItem('userid', res.data.user._id);
         localStorage.setItem('role', res.data.user.role);
-        localStorage.setItem('shopId', res.data.user.shopId); // Store shopId
+        localStorage.setItem('shopId', res.data.user.shopId || '');
         router.push('/dashboard');
       }
     } catch (err) {
@@ -42,12 +60,6 @@ export default function AuthPage() {
       setError(err.response?.data?.error || (isLogin ? 'Login failed' : 'Registration failed'));
       setLoading(false);
     }
-  };
-
-  const handleToggle = () => {
-    setIsLogin(!isLogin);
-    setError('');
-    setFormData({ username: '', password: '', confirmPassword: '' });
   };
 
   return (
@@ -76,7 +88,9 @@ export default function AuthPage() {
               type="text"
               placeholder="Username"
               value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, username: e.target.value })
+              }
               className="w-full p-4 bg-gray-800 bg-opacity-50 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
               required
             />
@@ -86,26 +100,55 @@ export default function AuthPage() {
               type="password"
               placeholder="Password"
               value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
               className="w-full p-4 bg-gray-800 bg-opacity-50 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
               required
             />
           </div>
           {!isLogin && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              transition={{ duration: 0.3 }}
-            >
-              <input
-                type="password"
-                placeholder="Confirm Password"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full p-4 bg-gray-800 bg-opacity-50 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
-                required
-              />
-            </motion.div>
+            <>
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <input
+                  type="password"
+                  placeholder="Confirm Password"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData({ ...formData, confirmPassword: e.target.value })
+                  }
+                  className="w-full p-4 bg-gray-800 bg-opacity-50 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
+                  required
+                />
+              </motion.div>
+              <div>
+                <select
+                  value={formData.role}
+                  onChange={(e) =>
+                    setFormData({ ...formData, role: e.target.value })
+                  }
+                  className="w-full p-4 bg-gray-800 bg-opacity-50 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="user">User</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div>
+                <input
+                  type="text"
+                  placeholder="Shop ID (optional)"
+                  value={formData.shopId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, shopId: e.target.value })
+                  }
+                  className="w-full p-4 bg-gray-800 bg-opacity-50 text-white border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
+                />
+              </div>
+            </>
           )}
           <button
             type="submit"
@@ -139,16 +182,7 @@ export default function AuthPage() {
             {loading ? 'Processing...' : isLogin ? 'Login' : 'Register'}
           </button>
         </form>
-        
-        <div className="mt-6 text-center">
-          <button
-            type="button"
-            onClick={handleToggle}
-            className="text-purple-300 hover:text-white transition duration-200"
-          >
-            {/* {isLogin ? "Don't have an account? Register" : 'Already have an account? Login'} */}
-          </button>
-        </div>
+    
       </motion.div>
     </div>
   );

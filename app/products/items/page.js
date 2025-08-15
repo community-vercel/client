@@ -4,7 +4,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import api from '@/lib/api';
 import Link from 'next/link';
-import { Package, BarChart3, Palette, Plus, Menu, X, Search, TrendingUp, Boxes, Archive } from 'lucide-react';
+import { Package, BarChart3, Palette, Plus, Menu, X, Search, TrendingUp, Boxes, Archive, Settings } from 'lucide-react';
 
 const ItemsPage = () => {
   const [items, setItems] = useState([]);
@@ -118,39 +118,35 @@ const ItemsPage = () => {
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const lowStockItems = items.filter((item) => item.quantity < 10).length;
 
-  const quickActions = useMemo(
-    () => [
-      {
-        title: 'Manage Items',
-        href: '/products',
-        icon: <Package className="w-5 h-5" />,
-        color: 'bg-gradient-to-r from-emerald-500 to-emerald-600',
-        description: 'View and edit products',
-      },
-      {
-        title: 'Manage Quantity',
-        href: '/products/items',
-        icon: <BarChart3 className="w-5 h-5" />,
-        color: 'bg-gradient-to-r from-blue-500 to-blue-600',
-        description: 'Update stock levels',
-      },
-      {
-        title: 'Manage Product',
-        href: '/product',
-        icon: <Plus className="w-5 h-5" />,
-        color: 'bg-gradient-to-r from-purple-500 to-purple-600',
-        description: 'Add new products',
-      },
-      {
-        title: 'Manage Colors',
-        href: '/colors',
-        icon: <Palette className="w-5 h-5" />,
-        color: 'bg-gradient-to-r from-orange-500 to-orange-600',
-        description: 'Color management',
-      },
-    ],
-    []
-  );
+ const quickActions = useMemo(
+  () => [
+    {
+      title: 'Manage Items',
+      href: '/products',
+      icon: <Package className="w-5 h-5" />,
+      description: 'View and edit products',
+    },
+    {
+      title: 'Manage Quantity',
+      href: '/products/items',
+      icon: <BarChart3 className="w-5 h-5" />,
+      description: 'Update stock levels',
+    },
+    {
+      title: 'Manage Product',
+      href: '/product',
+      icon: <Plus className="w-5 h-5" />,
+      description: 'Add new products',
+    },
+    {
+      title: 'Manage Colors',
+      href: '/colors',
+      icon: <Palette className="w-5 h-5" />,
+      description: 'Color management',
+    },
+  ],
+  []
+);
 
   const getStockStatus = (quantity) => {
     if (quantity === 0) return { label: 'Out of Stock', color: 'bg-red-100 text-red-800', icon: '🔴' };
@@ -170,30 +166,52 @@ const ItemsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-22 px-4">
       <ToastContainer theme="colored" position="top-right" autoClose={3000} />
 
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border border-white/20 shadow-xl rounded-2xl p-6 mb-6">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-3 rounded-xl shadow-lg">
-              <Package className="w-8 h-8 text-white" />
+     <header className="bg-white rounded-lg shadow-md p-4 mb-4 border border-gray-200">
+  <div className="flex justify-between items-center">
+    <div className="flex items-center space-x-3">
+      <div className="bg-gray-200 p-2 rounded-lg">
+        <Package className="w-6 h-6 text-gray-600" />
+      </div>
+      <div>
+        <h1 className="text-xl font-semibold text-gray-800">Inventory Dashboard</h1>
+        <p className="text-sm text-gray-600">Manage your stock efficiently</p>
+      </div>
+    </div>
+    <button
+      onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+      className="p-2 rounded-lg bg-gray-200 text-gray-600 hover:bg-gray-300 transition duration-200"
+      aria-label="Toggle sidebar"
+    >
+      {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+    </button>
+  </div>
+</header>
+ {isSidebarOpen && (
+  <div className="mb-4 bg-white rounded-lg shadow-md p-4 border border-gray-200">
+    <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <Settings className="w-5 h-5 text-gray-600" />
+      Quick Actions
+    </h2>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {quickActions.map((action, index) => (
+        <Link
+          key={index}
+          href={action.href}
+          className="bg-gray-100 p-4 rounded-lg text-gray-800 hover:bg-gray-200 transition duration-200"
+        >
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center justify-between">
+              {action.icon}
+              <span className="text-gray-500 text-lg">→</span>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Inventory Dashboard
-              </h1>
-              <p className="text-slate-600 font-medium">Manage your stock efficiently</p>
-            </div>
+            <h3 className="font-medium text-base">{action.title}</h3>
+            <p className="text-sm text-gray-600">{action.description}</p>
           </div>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-            aria-label="Toggle sidebar"
-          >
-            {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
-        </div>
-      </header>
-
+        </Link>
+      ))}
+    </div>
+  </div>
+)}
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl p-6 shadow-xl">
@@ -231,34 +249,7 @@ const ItemsPage = () => {
         </div>
       </div>
 
-      {/* Sidebar (Quick Actions) */}
-      {isSidebarOpen && (
-        <div className="mb-6 bg-white/80 backdrop-blur-sm border border-white/20 rounded-2xl shadow-xl p-6 transform transition-all duration-300 ease-out">
-          <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full"></div>
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {quickActions.map((action, index) => (
-              <Link
-                key={index}
-                href={action.href}
-                className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
-              >
-                <div className={`${action.color} p-6 text-white`}>
-                  <div className="flex items-center justify-between mb-3">
-                    {action.icon}
-                    <div className="opacity-20 text-2xl">→</div>
-                  </div>
-                  <h3 className="font-bold text-lg mb-1">{action.title}</h3>
-                  <p className="text-sm opacity-90">{action.description}</p>
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+ 
 
       {/* Main Content */}
       <main>

@@ -15,33 +15,7 @@ export default function LayoutWrapper({ children }) {
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-  const logout = async () => {
-    try {
-      await api.logout(localStorage.getItem('refreshToken'));
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userid');
-      localStorage.removeItem('role');
-      localStorage.removeItem('shopId');
-      setIsAuthenticated(false);
-      router.push('/login');
-      toast.info('Logged out successfully', {
-        position: 'top-right',
-      });
-    } catch (error) {
-      console.error('Logout failed:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userid');
-      localStorage.removeItem('role');
-      localStorage.removeItem('shopId');
-      setIsAuthenticated(false);
-      router.push('/login');
-      toast.error('Logout failed, but session cleared', {
-        position: 'top-right',
-      });
-    }
-  };
+ 
 
   useEffect(() => {
     const checkTokenValidity = async () => {
@@ -82,7 +56,7 @@ export default function LayoutWrapper({ children }) {
   return (
     <>
       <ToastContainer theme="colored" />
-      <Navbar onLogout={logout} /> {/* Pass logout to Navbar if needed */}
+      <Navbar  /> {/* Pass logout to Navbar if needed */}
       <div className="flex">
         <Sidebar />
         <main className="flex-1">{children}</main>

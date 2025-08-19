@@ -18,14 +18,15 @@ export default function LayoutWrapper({ children }) {
 
 
   const logout = () => {
-localStorage.removeItem('token');
+    localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userid');
     localStorage.removeItem('role');
-    localStorage.removeItem('shopId');    setIsAuthenticated(false);
+    localStorage.removeItem('shopId'); setIsAuthenticated(false);
     toast.error('Session expired. Please login again.');
     router.push('/login');
   };
+  
 
   useEffect(() => {
     const checkTokenValidity = async () => {

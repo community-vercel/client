@@ -15,7 +15,8 @@ export default function LayoutWrapper({ children }) {
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-  // ✅ Define logout function
+
+
   const logout = () => {
 localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');

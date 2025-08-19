@@ -15,7 +15,16 @@ export default function LayoutWrapper({ children }) {
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
- 
+  // ✅ Define logout function
+  const logout = () => {
+localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userid');
+    localStorage.removeItem('role');
+    localStorage.removeItem('shopId');    setIsAuthenticated(false);
+    toast.error('Session expired. Please login again.');
+    router.push('/login');
+  };
 
   useEffect(() => {
     const checkTokenValidity = async () => {
@@ -32,7 +41,9 @@ export default function LayoutWrapper({ children }) {
       }
 
       try {
-        await api.get('/auth/validate-token');
+        await api.get('/auth/validate-token', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setIsAuthenticated(true);
       } catch (error) {
         console.error('Token validation failed:', error);
@@ -47,7 +58,7 @@ export default function LayoutWrapper({ children }) {
 
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="min-h-screen flex items-center justify-center text-gray-700 bg-gradient-to-br from-gray-50 to-gray-100">
         Checking authentication...
       </div>
     );
@@ -56,7 +67,7 @@ export default function LayoutWrapper({ children }) {
   return (
     <>
       <ToastContainer theme="colored" />
-      <Navbar  /> {/* Pass logout to Navbar if needed */}
+      <Navbar logout={logout} /> {/* pass down logout if needed */}
       <div className="flex">
         <Sidebar />
         <main className="flex-1">{children}</main>

@@ -26,7 +26,7 @@ export default function LayoutWrapper({ children }) {
     toast.error('Session expired. Please login again.');
     router.push('/login');
   };
-  
+
 
   useEffect(() => {
     const checkTokenValidity = async () => {
@@ -75,5 +75,6 @@ export default function LayoutWrapper({ children }) {
         <main className="flex-1">{children}</main>
       </div>
     </>
+    
   );
 }

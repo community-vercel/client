@@ -53,6 +53,7 @@ export default function LayoutWrapper({ children }) {
       }
     };
 
+    
     checkTokenValidity();
   }, [pathname, isAuthPage, router]);
 

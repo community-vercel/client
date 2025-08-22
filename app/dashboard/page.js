@@ -220,9 +220,8 @@ const fetchData = useCallback(async () => {
     } else if (error.response?.status === 404 && error.response?.data?.message === 'Settings not found for this shop') {
       setError('Settings not found for this shop. Please contact support or create settings.');
     } else {
-      setError(error.response?.data?.message || 'Failed to fetch dashboard data. Please try again.');
+      // setError(error.response?.data?.message || 'Failed to fetch dashboard data. Please try again.');
     }
-    console.error('Error fetching dashboard data:', error);
   } finally {
     setLoading(false);
   }
